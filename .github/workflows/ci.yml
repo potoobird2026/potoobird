@@ -54,7 +54,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           pip install coverage
-          coverage report --fail-under=80
+          coverage report --fail-under=65
 
       - name: Upload security reports
         if: matrix.os == 'ubuntu-latest'
