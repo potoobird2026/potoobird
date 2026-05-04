@@ -31,7 +31,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
@@ -174,9 +174,9 @@ class StateMachine:
         # 3. 执行转换
         self._state = new_state
 
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        ts = datetime.now(timezone.utc).isoformat() + "Z"
+        ts = datetime.utcnow().isoformat() + "Z"
         self._history.append((old_state.value, new_state.value, ts))
 
         # 4. 进入新状态动作
@@ -475,7 +475,7 @@ class StateTransition:
     to_state: str = ""
     trigger: str = ""
     metadata: dict = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat() + "Z")
+    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
 
 
 @dataclass
@@ -487,7 +487,7 @@ class StateSnapshot:
     state: str = ""
     metadata: dict = field(default_factory=dict)
     timeout_config: dict = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat() + "Z")
+    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
 
 
 class AgentStateMachine:
@@ -764,7 +764,7 @@ class StatePersistence:
             interval: 心跳间隔（秒）
             timeout: 超时时间（秒）
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
@@ -777,7 +777,7 @@ class StatePersistence:
                     state,
                     interval,
                     timeout,
-                    datetime.now(timezone.utc).isoformat() + "Z",
+                    datetime.utcnow().isoformat() + "Z",
                 ),
             )
             conn.commit()

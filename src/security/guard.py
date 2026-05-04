@@ -17,7 +17,7 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Optional
 
@@ -197,7 +197,7 @@ class ApprovalRequest:
     urgency_score: float = 0.5
     status: ApprovalStatus = ApprovalStatus.PENDING
     timeout_seconds: float = 3600.0
-    created_at: datetime = field(default_factory=datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=datetime.utcnow)
     resolved_at: Optional[datetime] = None
     approver: str = ""
     reason: str = ""
@@ -306,7 +306,7 @@ class ApprovalModule:
         if not request:
             raise ValueError(f"审批请求不存在: {request_id}")
         request.status = ApprovalStatus.APPROVED
-        request.resolved_at = datetime.now(timezone.utc)
+        request.resolved_at = datetime.utcnow()
         request.approver = approver
         request.reason = reason
         self._history.append(request)
@@ -320,7 +320,7 @@ class ApprovalModule:
         if not request:
             raise ValueError(f"审批请求不存在: {request_id}")
         request.status = ApprovalStatus.REJECTED
-        request.resolved_at = datetime.now(timezone.utc)
+        request.resolved_at = datetime.utcnow()
         request.approver = approver
         request.reason = reason
         self._history.append(request)
@@ -454,7 +454,7 @@ class CredentialEntry:
     key: str = ""
     value: str = ""  # V2: 加密存储
     provider: str = ""
-    created_at: datetime = field(default_factory=datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=datetime.utcnow)
     last_used: Optional[datetime] = None
     use_count: int = 0
 
@@ -502,7 +502,7 @@ class CredentialPool:
         entry = self._credentials.get(key)
         if not entry:
             raise KeyError(f"凭证 {key} 不存在（G-010: 缺失就问用户，不编造）")
-        entry.last_used = datetime.now(timezone.utc)
+        entry.last_used = datetime.utcnow()
         entry.use_count += 1
         return entry.value
 
@@ -672,7 +672,7 @@ class CredentialPoolV2:
         self._credentials[name] = {
             "encrypted": ciphertext,
             "nonce": nonce,
-            "created_at": datetime.now(timezone.utc).isoformat() + "Z",
+            "created_at": datetime.utcnow().isoformat() + "Z",
         }
         logger.info(f"凭证已加密存储: {name}")
 
@@ -697,8 +697,8 @@ class CredentialPoolV2:
 
         # 检查冷却状态
         if name in self._cooldowns:
-            if datetime.now(timezone.utc) < self._cooldowns[name]:
-                remaining = (self._cooldowns[name] - datetime.now(timezone.utc)).seconds
+            if datetime.utcnow() < self._cooldowns[name]:
+                remaining = (self._cooldowns[name] - datetime.utcnow()).seconds
                 raise RuntimeError(f"凭证 {name} 处于冷却状态，剩余 {remaining}s")
             else:
                 del self._cooldowns[name]
@@ -717,7 +717,7 @@ class CredentialPoolV2:
             duration_seconds: 冷却时长秒数（None 时由 LLM 根据限流响应头动态评估，默认 300s）
         """
         duration = duration_seconds or 300  # 参考值，实际由 LLM 动态评估
-        self._cooldowns[name] = datetime.now(timezone.utc) + timedelta(seconds=duration)
+        self._cooldowns[name] = datetime.utcnow() + timedelta(seconds=duration)
         logger.info(f"凭证冷却: {name}，时长 {duration}s")
 
     @property

@@ -19,7 +19,7 @@ SessionManager — 会话生命周期管理
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Optional
 
@@ -60,8 +60,8 @@ class Session:
     context_summary: str = ""
     task_states: dict = field(default_factory=dict)
     status: SessionStatus = SessionStatus.ACTIVE
-    created_at: datetime = field(default_factory=datetime.now(timezone.utc))
-    updated_at: datetime = field(default_factory=datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    updated_at: datetime = field(default_factory=datetime.utcnow)
 
     # 覆盖 __init__ 以支持旧接口参数 state= 和 message_count=
     # 注意：不能和 @property 同名，否则 dataclass 会把 property 对象作为 default
@@ -215,7 +215,7 @@ class SessionManager:
 
         # 3. 追加消息
         session.messages.append({"role": "user", "content": content})
-        session.updated_at = datetime.now(timezone.utc)
+        session.updated_at = datetime.utcnow()
 
         # 4. 压缩检测
         if self.compressor and len(session.messages) > 6:
@@ -348,7 +348,7 @@ class SessionManager:
         """
         session = self._sessions.get(session_id)
         if session and session.status == SessionStatus.ACTIVE:
-            session.updated_at = datetime.now(timezone.utc)
+            session.updated_at = datetime.utcnow()
             return session
         return None
 
@@ -397,7 +397,7 @@ class SessionManager:
         """
         if max_idle_seconds is None:
             max_idle_seconds = getattr(self, "_idle_timeout", 7200)
-        now = datetime.now(timezone.utc)
+        now = datetime.utcnow()
         expired = []
         for sid, session in self._sessions.items():
             idle_seconds = (now - session.updated_at).total_seconds()

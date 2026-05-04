@@ -153,13 +153,13 @@ class SkillRegistry:
 
     def _update_enabled_db(self, skill_id: str, enabled: bool):
         """更新 enabled 字段（使用长连接）"""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.utcnow().isoformat()
         self._conn.execute(_UPDATE_ENABLED_SQL, (int(enabled), now, skill_id))
         self._conn.commit()
 
     def _update_config_db(self, skill_id: str, config: dict):
         """更新 config 字段（使用长连接）"""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.utcnow().isoformat()
         self._conn.execute(
             _UPDATE_CONFIG_SQL,
             (json.dumps(config, ensure_ascii=False), now, skill_id),
@@ -170,7 +170,7 @@ class SkillRegistry:
 
     def register(self, skill: SkillDefinition) -> bool:
         """注册新 Skill（幂等，同名覆盖）"""
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.utcnow().isoformat()
         skill.installed_at = skill.installed_at or now
         skill.updated_at = now
         self._save_to_db(skill)
@@ -196,7 +196,7 @@ class SkillRegistry:
         if not skill:
             return False
         skill.enabled = True
-        skill.updated_at = datetime.now(timezone.utc).isoformat()
+        skill.updated_at = datetime.utcnow().isoformat()
         self._update_enabled_db(skill_id, True)
         self.emit("skill_enabled", skill)
         return True
@@ -207,7 +207,7 @@ class SkillRegistry:
         if not skill:
             return False
         skill.enabled = False
-        skill.updated_at = datetime.now(timezone.utc).isoformat()
+        skill.updated_at = datetime.utcnow().isoformat()
         self._update_enabled_db(skill_id, False)
         self.emit("skill_disabled", skill)
         return True
@@ -218,7 +218,7 @@ class SkillRegistry:
         if not skill:
             return False
         skill.config.update(config)
-        skill.updated_at = datetime.now(timezone.utc).isoformat()
+        skill.updated_at = datetime.utcnow().isoformat()
         self._update_config_db(skill_id, skill.config)
         self.emit("skill_configured", skill)
         return True

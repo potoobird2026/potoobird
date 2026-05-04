@@ -20,7 +20,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 logger = logging.getLogger("long_agent.observability")
@@ -177,7 +177,7 @@ class PrometheusExporter:
         os.makedirs(os.path.dirname(save_path) or ".", exist_ok=True)
 
         snapshot = MetricSnapshot(
-            timestamp=datetime.now(timezone.utc).isoformat() + "Z",
+            timestamp=datetime.utcnow().isoformat() + "Z",
             llm_latency=self.LLM_LATENCY.collect_snapshot(),
             memory_retrieval_latency=self.MEMORY_RETRIEVAL_LATENCY.collect_snapshot(),
             agent_loop_duration=self.AGENT_LOOP_DURATION.collect_snapshot(),
@@ -226,7 +226,7 @@ class PrometheusExporter:
     def get_snapshot(self) -> MetricSnapshot:
         """获取当前指标快照（不持久化）"""
         return MetricSnapshot(
-            timestamp=datetime.now(timezone.utc).isoformat() + "Z",
+            timestamp=datetime.utcnow().isoformat() + "Z",
             llm_latency=self.LLM_LATENCY.collect_snapshot(),
             memory_retrieval_latency=self.MEMORY_RETRIEVAL_LATENCY.collect_snapshot(),
             agent_loop_duration=self.AGENT_LOOP_DURATION.collect_snapshot(),

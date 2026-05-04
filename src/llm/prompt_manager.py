@@ -119,7 +119,7 @@ class PromptManager:
         Returns:
             str: 组装好的system prompt
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         parts = []
 
@@ -128,7 +128,7 @@ class PromptManager:
         if base:
             parts.append(
                 base.template.format(
-                    current_time=datetime.now(timezone.utc).isoformat() + "Z",
+                    current_time=datetime.utcnow().isoformat() + "Z",
                     user_id=user_id,
                 )
             )

@@ -19,7 +19,7 @@ V2 记忆系统联动架构（ADR-008）：
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 from src.audit.logger import AuditAction, AuditLogger
@@ -664,7 +664,7 @@ class MemoryManager:
 
     def _record_failed_write(self, item: dict):
         path = self.data_dir / "failed_writes.jsonl"
-        item["failed_at"] = datetime.now(timezone.utc).isoformat() + "Z"
+        item["failed_at"] = datetime.utcnow().isoformat() + "Z"
         with open(path, "a") as f:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 

@@ -22,7 +22,7 @@ import asyncio
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from src.audit.logger import AuditAction, AuditLogger
@@ -98,7 +98,7 @@ class LoopContext:
 
     # 元数据
     loop_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
-    started_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat() + "Z")
+    started_at: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
     error: str = ""
 
     # 人格系统（V2 — PersonalityFusionEngine）
