@@ -325,11 +325,12 @@ class SQLiteStorage(MemoryStorage):
     async def batch_get(self, memory_ids: list[str]) -> list[Memory]:
         if not memory_ids:
             return []
-        placeholders = ",".join("?" * len(memory_ids))
-        rows = self.conn.execute(
-            f"SELECT * FROM memories WHERE id IN ({placeholders})", memory_ids
-        ).fetchall()
-        return [self._row_to_memory(row) for row in rows]
+        result = []
+        for mid in memory_ids:
+            row = self.conn.execute("SELECT * FROM memories WHERE id = ?", (mid,)).fetchone()
+            if row:
+                result.append(self._row_to_memory(row))
+        return result
 
     async def batch_update_access_counts(self, updates: dict[str, int]):
         for memory_id, delta in updates.items():
@@ -384,8 +385,8 @@ class SQLiteStorage(MemoryStorage):
     async def delete_snapshots(self, snapshot_ids: list[str]):
         if not snapshot_ids:
             return
-        placeholders = ",".join("?" * len(snapshot_ids))
-        self.conn.execute(f"DELETE FROM snapshots WHERE id IN ({placeholders})", snapshot_ids)
+        for sid in snapshot_ids:
+            self.conn.execute("DELETE FROM snapshots WHERE id = ?", (sid,))
         self.conn.commit()
 
     # ---- 维护 ----

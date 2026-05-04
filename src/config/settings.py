@@ -101,7 +101,7 @@ try:
         metrics_port: int = Field(default=8001, ge=1024, le=65535)
         metrics_path: str = Field(default="/metrics")
         health_enabled: bool = Field(default=True)
-        observability_host: str = Field(default="0.0.0.0")
+        observability_host: str = Field(default="127.0.0.1")
 
         # === 后台任务 ===
         backup_interval_hours: int = Field(default=24, ge=1, le=168)
@@ -165,7 +165,7 @@ except ImportError:
             self.metrics_port = int(os.getenv("LONG_AGENT_METRICS_PORT", "8001"))
             self.metrics_path = os.getenv("LONG_AGENT_METRICS_PATH", "/metrics")
             self.health_enabled = os.getenv("LONG_AGENT_HEALTH_ENABLED", "true").lower() == "true"
-            self.observability_host = os.getenv("LONG_AGENT_OBSERVABILITY_HOST", "0.0.0.0")
+            self.observability_host = os.getenv("LONG_AGENT_OBSERVABILITY_HOST", "127.0.0.1")
             self.backup_interval_hours = int(os.getenv("LONG_AGENT_BACKUP_INTERVAL_HOURS", "24"))
             self.snapshot_cleanup_days = int(os.getenv("LONG_AGENT_SNAPSHOT_CLEANUP_DAYS", "7"))
             self.vacuum_interval_days = int(os.getenv("LONG_AGENT_VACUUM_INTERVAL_DAYS", "30"))

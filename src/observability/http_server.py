@@ -109,7 +109,7 @@ def create_observability_app(
 async def start_observability_server(
     health_checker=None,
     metrics_collector=None,
-    host: str = "0.0.0.0",
+    host: str = "127.0.0.1",
     port: int = 8001,
 ):
     """启动可观测性 HTTP 服务器（非阻塞）"""

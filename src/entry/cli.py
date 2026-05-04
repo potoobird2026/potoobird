@@ -164,7 +164,7 @@ def create_agent(read_only: bool = False):
 
 @app.command()
 def web(
-    host: str = "0.0.0.0",
+    host: str = "127.0.0.1",
     port: int = 8080,
     mcp_servers: list[str] = typer.Option(
         [], "--mcp", "-m", help="外部 MCP 服务器地址（可重复，如 http://localhost:9090/mcp）"

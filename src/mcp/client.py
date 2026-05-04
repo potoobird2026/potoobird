@@ -506,11 +506,16 @@ class McpClientManager:
     def list_tools(self, server_id: str = None) -> list[McpToolInfo]:
         tools = []
         with self._get_conn() as conn:
-            for row in conn.execute(
-                "SELECT server_id, tool_name, description, input_schema FROM mcp_tools_cache"
-                + (" WHERE server_id=?" if server_id else ""),
-                (server_id,) if server_id else (),
-            ):
+            if server_id:
+                rows = conn.execute(
+                    "SELECT server_id, tool_name, description, input_schema FROM mcp_tools_cache WHERE server_id=?",
+                    (server_id,),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT server_id, tool_name, description, input_schema FROM mcp_tools_cache"
+                ).fetchall()
+            for row in rows:
                 tools.append(
                     McpToolInfo(
                         name=row[1],
