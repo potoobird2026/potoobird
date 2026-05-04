@@ -16,7 +16,7 @@ EventBus — 模块间事件总线
 import asyncio
 import logging
 from collections import defaultdict
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable
 
 logger = logging.getLogger("long_agent.session.event_bus")
 

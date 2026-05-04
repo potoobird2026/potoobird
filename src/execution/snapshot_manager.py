@@ -22,11 +22,12 @@ logger = logging.getLogger("long_agent.execution.snapshot_manager")
 @dataclass
 class TaskSnapshot:
     """任务快照"""
+
     task_id: str
     step_index: int
     state: dict = field(default_factory=dict)
     created_at: datetime = field(default_factory=datetime.now)
-    id: str = field(default_factory=lambda: __import__('uuid').uuid4().hex[:8])
+    id: str = field(default_factory=lambda: __import__("uuid").uuid4().hex[:8])
 
 
 class SnapshotManager:
@@ -54,8 +55,7 @@ class SnapshotManager:
         os.makedirs(self.snapshot_dir, exist_ok=True)
         self._snapshots = {}  # task_id -> list[TaskSnapshot]
 
-    def save_snapshot(self, task_id: str, step_index: int,
-                      state: dict) -> TaskSnapshot:
+    def save_snapshot(self, task_id: str, step_index: int, state: dict) -> TaskSnapshot:
         """保存快照（每步执行后调用）"""
         snapshot = TaskSnapshot(
             task_id=task_id,
@@ -87,18 +87,20 @@ class SnapshotManager:
 
     def _persist_snapshot(self, snapshot: TaskSnapshot):
         """持久化快照到文件"""
-        filepath = os.path.join(
-            self.snapshot_dir,
-            f"{snapshot.task_id}_{snapshot.id}.json"
-        )
+        filepath = os.path.join(self.snapshot_dir, f"{snapshot.task_id}_{snapshot.id}.json")
         with open(filepath, "w", encoding="utf-8") as f:
-            json.dump({
-                "id": snapshot.id,
-                "task_id": snapshot.task_id,
-                "step_index": snapshot.step_index,
-                "state": snapshot.state,
-                "created_at": snapshot.created_at.isoformat(),
-            }, f, ensure_ascii=False, indent=2)
+            json.dump(
+                {
+                    "id": snapshot.id,
+                    "task_id": snapshot.task_id,
+                    "step_index": snapshot.step_index,
+                    "state": snapshot.state,
+                    "created_at": snapshot.created_at.isoformat(),
+                },
+                f,
+                ensure_ascii=False,
+                indent=2,
+            )
 
     def _load_latest_snapshot(self, task_id: str) -> Optional[TaskSnapshot]:
         """从文件加载最近的快照"""
@@ -110,8 +112,10 @@ class SnapshotManager:
         with open(os.path.join(self.snapshot_dir, latest_file), "r") as f:
             data = json.load(f)
         return TaskSnapshot(
-            id=data["id"], task_id=data["task_id"],
-            step_index=data["step_index"], state=data["state"],
+            id=data["id"],
+            task_id=data["task_id"],
+            step_index=data["step_index"],
+            state=data["state"],
             created_at=datetime.fromisoformat(data["created_at"]),
         )
 
@@ -120,12 +124,10 @@ class SnapshotManager:
         snapshots = self._snapshots.get(task_id, [])
         max_count = self.max_snapshots or 50  # 参考值，实际由 LLM 动态评估
         if len(snapshots) > max_count:
-            to_remove = snapshots[:len(snapshots) - max_count]
-            self._snapshots[task_id] = snapshots[len(snapshots) - max_count:]
+            to_remove = snapshots[: len(snapshots) - max_count]
+            self._snapshots[task_id] = snapshots[len(snapshots) - max_count :]
             for snapshot in to_remove:
-                filepath = os.path.join(
-                    self.snapshot_dir, f"{snapshot.task_id}_{snapshot.id}.json"
-                )
+                filepath = os.path.join(self.snapshot_dir, f"{snapshot.task_id}_{snapshot.id}.json")
                 if os.path.exists(filepath):
                     os.remove(filepath)
 

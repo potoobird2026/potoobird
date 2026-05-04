@@ -43,6 +43,7 @@ def create_agent(read_only: bool = False):
     try:
         if settings.openai_api_key:
             from src.llm.provider import OpenAIProvider
+
             llm_provider = OpenAIProvider(
                 api_key=settings.openai_api_key,
                 model=settings.openai_model,
@@ -54,28 +55,29 @@ def create_agent(read_only: bool = False):
         logger.warning(f"LLM Provider 初始化失败（降级为无 LLM 模式）: {e}")
         understanding_with_llm = understanding
 
-    from src.loop.agent_loop import AgentLoop
-    from src.observability.metrics import MetricsCollector
-    from src.observability.health import HealthChecker
-    from src.context.compressor import ContextCompressor, BackgroundCompressor
+    from pathlib import Path
+
+    from src.background.manager import BackgroundTaskManager
+    from src.context.compressor import BackgroundCompressor, ContextCompressor
+    from src.delivery.report_generator import ReportGenerator
+    from src.delivery.result_verifier import ResultVerifier
     from src.execution.b_supervisor import BSupervisor
     from src.execution.goal_anchor import GoalAnchor
     from src.execution.snapshot_manager import SnapshotManager
-    from src.execution.tool_registry import ToolRegistry, ToolLevel
     from src.execution.sub_agent_manager import SubAgentManager
-    from src.delivery.result_verifier import ResultVerifier
-    from src.delivery.report_generator import ReportGenerator
-    from src.session.session_manager import SessionManager
-    from src.session.event_bus import EventBus
-    from src.background.manager import BackgroundTaskManager
-    from src.personality.algorithms import PersonalityFusionEngine
-    from src.security.guard import ApprovalModule, ConflictChecker, CredentialPool
-    from src.skill.manager import SkillRegistry as SkillManager
-    from src.mcp.client import McpClientManager as MCPClient
+    from src.execution.tool_registry import ToolRegistry
     from src.llm.model_router import ModelRouter
     from src.llm.prompt_manager import PromptManager
+    from src.loop.agent_loop import AgentLoop
+    from src.mcp.client import McpClientManager as MCPClient
+    from src.observability.health import HealthChecker
+    from src.observability.metrics import MetricsCollector
+    from src.personality.algorithms import PersonalityFusionEngine
+    from src.security.guard import ApprovalModule, ConflictChecker, CredentialPool
+    from src.session.event_bus import EventBus
+    from src.session.session_manager import SessionManager
+    from src.skill.manager import SkillRegistry as SkillManager
 
-    from pathlib import Path
     context_window = 128000
     metrics = MetricsCollector()
     health_checker = HealthChecker(storage=storage, metrics=metrics)
@@ -164,10 +166,13 @@ def create_agent(read_only: bool = False):
 def web(
     host: str = "0.0.0.0",
     port: int = 8080,
-    mcp_servers: list[str] = typer.Option([], "--mcp", "-m", help="外部 MCP 服务器地址（可重复，如 http://localhost:9090/mcp）"),
+    mcp_servers: list[str] = typer.Option(
+        [], "--mcp", "-m", help="外部 MCP 服务器地址（可重复，如 http://localhost:9090/mcp）"
+    ),
 ):
     """启动 Web UI（可选连接外部 MCP 服务器）"""
     import uvicorn
+
     agent = create_agent()
     if mcp_servers:
         mcp_client = agent["mcp_client"]
@@ -231,9 +236,7 @@ def run(
 
             # V2：通过 Agent 主循环处理
             try:
-                response = loop.run_until_complete(
-                    agent["agent_loop"].run(user_input)
-                )
+                response = loop.run_until_complete(agent["agent_loop"].run(user_input))
                 typer.echo(f"Agent: {response}")
             except Exception as e:
                 logger.error(f"主循环处理失败: {e}", exc_info=True)
@@ -261,9 +264,7 @@ def once(
     # V2：通过 Agent 主循环处理
     try:
         loop = asyncio.new_event_loop()
-        response = loop.run_until_complete(
-            agent["agent_loop"].run(command)
-        )
+        response = loop.run_until_complete(agent["agent_loop"].run(command))
         typer.echo(f"Agent: {response}")
     except Exception as e:
         logger.error(f"主循环处理失败: {e}", exc_info=True)
@@ -300,6 +301,7 @@ def audit_show(
 
 
 # ── V2 可观测性命令 ──────────────────────────────
+
 
 @metrics_app.command("show")
 def metrics_show(
@@ -343,7 +345,9 @@ def metrics_show(
             typer.echo("\n⏱  耗时:")
             for k, v in sorted(timings.items()):
                 if isinstance(v, dict):
-                    typer.echo(f"  {k}: count={v.get('count', 0)}, avg={v.get('avg_ms', 0):.1f}ms, max={v.get('max_ms', 0):.1f}ms")
+                    typer.echo(
+                        f"  {k}: count={v.get('count', 0)}, avg={v.get('avg_ms', 0):.1f}ms, max={v.get('max_ms', 0):.1f}ms"
+                    )
 
         typer.echo("═" * 50)
 

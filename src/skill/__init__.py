@@ -1,3 +1,3 @@
-from src.skill.manager import SkillRegistry, SkillDefinition
+from src.skill.manager import SkillDefinition, SkillRegistry
 
 __all__ = ["SkillRegistry", "SkillDefinition"]

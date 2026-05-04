@@ -18,6 +18,7 @@ Agent 主循环 — 7 步循环 + 状态机驱动
 状态机驱动：每个步骤对应一个状态转换，非法转换直接拒绝。
 """
 
+import asyncio
 import logging
 import uuid
 from dataclasses import dataclass, field
@@ -25,21 +26,21 @@ from datetime import datetime
 from typing import Optional
 
 from src.audit.logger import AuditAction, AuditLogger
+from src.background.manager import BackgroundTaskManager
+from src.context.compressor import BackgroundCompressor, ContextCompressor
+from src.delivery.report_generator import ReportGenerator
+from src.delivery.result_verifier import ResultVerifier
 from src.errors.types import ErrorCode, LLMResult, OperationResult
-from src.loop.state import AgentState, StateMachine
 
 # V2 imports — 延迟导入避免循环依赖
 from src.execution.b_supervisor import BSupervisor
 from src.execution.goal_anchor import GoalAnchor
 from src.execution.snapshot_manager import SnapshotManager
-from src.execution.tool_registry import ToolRegistry
 from src.execution.sub_agent_manager import SubAgentManager
-from src.context.compressor import ContextCompressor, BackgroundCompressor
+from src.execution.tool_registry import ToolRegistry
+from src.loop.state import AgentState, StateMachine
 from src.personality.algorithms import PersonalityFusionEngine, PersonalityState
-from src.delivery.result_verifier import ResultVerifier
-from src.delivery.report_generator import ReportGenerator
 from src.session.session_manager import SessionManager
-from src.background.manager import BackgroundTaskManager
 
 logger = logging.getLogger("long_agent.loop.agent_loop")
 
@@ -78,15 +79,15 @@ class LoopContext:
     llm_result: Optional[LLMResult] = None
     tool_result: Optional[OperationResult] = None
     execution_result: str = ""
-    exec_result: object = None   # BSupervisor 执行结果对象（含 task_id、status 等）
+    exec_result: object = None  # BSupervisor 执行结果对象（含 task_id、status 等）
     retry_count: int = 0
 
     # 观察阶段产出
     is_off_track: bool = False
     off_track_reason: str = ""
-    verify_report: object = None          # ResultVerifier 验证报告
-    verification_status: str = ""         # 验证状态: passed / failed / skipped / error
-    verification_passed: bool = False     # 验证是否通过
+    verify_report: object = None  # ResultVerifier 验证报告
+    verification_status: str = ""  # 验证状态: passed / failed / skipped / error
+    verification_passed: bool = False  # 验证是否通过
 
     # 反思阶段产出
     memory_updated: bool = False
@@ -116,11 +117,13 @@ def _build_plan_from_intent(intent, operation_type: str):
     - acceptance_criteria: list[str]  验收标准列表
     - max_steps: int  最大步骤数
     """
+
     class Plan:
         def __init__(self):
-            self.deliverable = getattr(intent, 'content', '') or f"执行 {operation_type}"
-            self.acceptance_criteria = getattr(intent, 'acceptance_criteria', []) or ["结果非空"]
-            self.max_steps = getattr(intent, 'max_steps', 5)
+            self.deliverable = getattr(intent, "content", "") or f"执行 {operation_type}"
+            self.acceptance_criteria = getattr(intent, "acceptance_criteria", []) or ["结果非空"]
+            self.max_steps = getattr(intent, "max_steps", 5)
+
     return Plan()
 
 
@@ -218,27 +221,41 @@ class AgentLoop:
         self.event_bus = event_bus
 
         # V2 P2 新增：8个主动调用对应的实例变量（可选注入，未注入时跳过）
-        self._memory_loader = memory_loader              # B1: MemoryLoader 动态预算分配
-        self._token_counter = token_counter              # B3: TokenCounter 压缩判断
-        self._process_standard = process_standard        # B4: ProcessStandard 任务完结
-        self._adaptive_timeout = adaptive_timeout        # B5: AdaptiveTimeoutManager
-        self._message_queue = message_queue              # B6: MessageQueue
-        self._state_persistence = state_persistence      # B7: StatePersistence
-        self._session_archiver = session_archiver        # B8: Session 归档
+        self._memory_loader = memory_loader  # B1: MemoryLoader 动态预算分配
+        self._token_counter = token_counter  # B3: TokenCounter 压缩判断
+        self._process_standard = process_standard  # B4: ProcessStandard 任务完结
+        self._adaptive_timeout = adaptive_timeout  # B5: AdaptiveTimeoutManager
+        self._message_queue = message_queue  # B6: MessageQueue
+        self._state_persistence = state_persistence  # B7: StatePersistence
+        self._session_archiver = session_archiver  # B8: Session 归档
         self._deliverable_validator = deliverable_validator  # DeliverableValidator 实例
 
         # 可配置参数（None 时使用默认值）
         if max_execute_retries is not None and max_execute_retries < 0:
             raise ValueError("MAX_EXECUTE_RETRIES 不能为负数，当前值：{max_execute_retries}")
-        self.MAX_EXECUTE_RETRIES = max_execute_retries if max_execute_retries is not None else self.DEFAULT_MAX_EXECUTE_RETRIES
+        self.MAX_EXECUTE_RETRIES = (
+            max_execute_retries
+            if max_execute_retries is not None
+            else self.DEFAULT_MAX_EXECUTE_RETRIES
+        )
 
         if max_clarification_attempts is not None and max_clarification_attempts < 0:
-            raise ValueError("MAX_CLARIFICATION_ATTEMPTS 不能为负数，当前值：{max_clarification_attempts}")
-        self.MAX_CLARIFICATION_ATTEMPTS = max_clarification_attempts if max_clarification_attempts is not None else self.DEFAULT_MAX_CLARIFICATION_ATTEMPTS
+            raise ValueError(
+                "MAX_CLARIFICATION_ATTEMPTS 不能为负数，当前值：{max_clarification_attempts}"
+            )
+        self.MAX_CLARIFICATION_ATTEMPTS = (
+            max_clarification_attempts
+            if max_clarification_attempts is not None
+            else self.DEFAULT_MAX_CLARIFICATION_ATTEMPTS
+        )
 
         if step_timeout_seconds is not None and step_timeout_seconds <= 0:
             raise ValueError(f"STEP_TIMEOUT_SECONDS 必须为正数，当前值：{step_timeout_seconds}")
-        self.STEP_TIMEOUT_SECONDS = step_timeout_seconds if step_timeout_seconds is not None else self.DEFAULT_STEP_TIMEOUT_SECONDS
+        self.STEP_TIMEOUT_SECONDS = (
+            step_timeout_seconds
+            if step_timeout_seconds is not None
+            else self.DEFAULT_STEP_TIMEOUT_SECONDS
+        )
 
         # 置信度阈值（V1 遗留 ConfidenceThreshold 已删除，此处暂设为 None）
         self._confidence_threshold = confidence_threshold  # 当前未使用
@@ -247,7 +264,9 @@ class AgentLoop:
         if self.MAX_EXECUTE_RETRIES < 0:
             raise ValueError(f"MAX_EXECUTE_RETRIES 不能为负数: {self.MAX_EXECUTE_RETRIES}")
         if self.MAX_CLARIFICATION_ATTEMPTS < 0:
-            raise ValueError(f"MAX_CLARIFICATION_ATTEMPTS 不能为负数: {self.MAX_CLARIFICATION_ATTEMPTS}")
+            raise ValueError(
+                f"MAX_CLARIFICATION_ATTEMPTS 不能为负数: {self.MAX_CLARIFICATION_ATTEMPTS}"
+            )
         if self.STEP_TIMEOUT_SECONDS <= 0:
             raise ValueError(f"STEP_TIMEOUT_SECONDS 必须为正数: {self.STEP_TIMEOUT_SECONDS}")
 
@@ -378,7 +397,7 @@ class AgentLoop:
         logger.debug(f"[{ctx.loop_id}] ① 感知阶段")
 
         # 1. 输入过滤（如果有安全模块）
-        if hasattr(self, 'security') and self.security:
+        if hasattr(self, "security") and self.security:
             try:
                 filter_result = self.security.filter(ctx.user_input)
                 if not filter_result.is_ok:
@@ -438,13 +457,13 @@ class AgentLoop:
 
         # 4. 上下文压缩（V2 — ContextCompressor 三阶段压缩）
         # 4a. 后台压缩信号检查（非阻塞）
-        if self.background_compressor and hasattr(self.background_compressor, 'signal_maybe_compress'):
+        if self.background_compressor and hasattr(
+            self.background_compressor, "signal_maybe_compress"
+        ):
             try:
                 # 传入 session 对象（需有 .messages 属性）
                 session_proxy = _SessionProxy(ctx.compressed_messages)
-                asyncio.create_task(
-                    self.background_compressor.signal_maybe_compress(session_proxy)
-                )
+                asyncio.create_task(self.background_compressor.signal_maybe_compress(session_proxy))
             except Exception as e:
                 logger.debug(f"后台压缩信号检查失败（降级跳过）: {e}")
 
@@ -455,10 +474,16 @@ class AgentLoop:
                     messages=ctx.compressed_messages,
                     current_input=ctx.filtered_input,
                 )
-                ctx.compressed_messages = [
-                    m for m in ctx.compressed_messages
-                    if str(m.get("id", "")) in compress_result.kept_ids or m.get("role") == "system"
-                ] if compress_result.kept_ids else ctx.compressed_messages
+                ctx.compressed_messages = (
+                    [
+                        m
+                        for m in ctx.compressed_messages
+                        if str(m.get("id", "")) in compress_result.kept_ids
+                        or m.get("role") == "system"
+                    ]
+                    if compress_result.kept_ids
+                    else ctx.compressed_messages
+                )
                 logger.debug(
                     f"[{ctx.loop_id}] 上下文压缩: "
                     f"{compress_result.original_count} → {compress_result.compressed_count}"
@@ -503,9 +528,7 @@ class AgentLoop:
                     session = await self.session_manager.create_session(
                         session_id=ctx.conversation_id or ctx.loop_id,
                     )
-                    logger.debug(
-                        f"[{ctx.loop_id}] SessionManager: 创建新会话 {session.id}"
-                    )
+                    logger.debug(f"[{ctx.loop_id}] SessionManager: 创建新会话 {session.id}")
 
                 # 6b. 追加当前用户消息到会话历史
                 await self.session_manager.append_message(
@@ -515,9 +538,12 @@ class AgentLoop:
                 )
 
                 # 6c. 将会话消息同步到 compressed_messages（供后续压缩和LLM使用）
-                if hasattr(session, 'messages') and session.messages:
+                if hasattr(session, "messages") and session.messages:
                     ctx.compressed_messages = [
-                        {"role": getattr(m, "role", "user"), "content": getattr(m, "content", str(m))}
+                        {
+                            "role": getattr(m, "role", "user"),
+                            "content": getattr(m, "content", str(m)),
+                        }
                         for m in session.messages
                     ]
 
@@ -548,8 +574,8 @@ class AgentLoop:
             # 排除 mock 对象（MagicMock 的 getattr/callable 永远返回 truthy）
             _v2_loader = None
             memory_cls_name = type(self.memory).__name__
-            if memory_cls_name not in ('MagicMock', 'AsyncMock', 'NonCallableMagicMock'):
-                _v2_loader = getattr(self.memory, 'load_memories_for_context', None)
+            if memory_cls_name not in ("MagicMock", "AsyncMock", "NonCallableMagicMock"):
+                _v2_loader = getattr(self.memory, "load_memories_for_context", None)
             if _v2_loader is not None and callable(_v2_loader):
                 try:
                     loaded_memories = await self.memory.load_memories_for_context(
@@ -561,11 +587,13 @@ class AgentLoop:
                     ]
                     context["relevant_memories"] = [
                         {"content": m.get("content", ""), "category": m.get("layer", "standard")}
-                        for m in loaded_memories if m.get("layer") != "personality"
+                        for m in loaded_memories
+                        if m.get("layer") != "personality"
                     ]
                     context["standards"] = [
                         {"content": m.get("content", ""), "category": "standard"}
-                        for m in loaded_memories if m.get("layer") == "standard"
+                        for m in loaded_memories
+                        if m.get("layer") == "standard"
                     ]
                     context["_v2_loaded_count"] = len(loaded_memories)
                     logger.debug(f"[V2] 动态加载记忆: {len(loaded_memories)} 条")
@@ -575,21 +603,19 @@ class AgentLoop:
                     # 降级到 V1（继续执行下方代码）
 
             # V1 降级路径（原有逻辑）
-            if hasattr(self.memory, 'get_personality'):
+            if hasattr(self.memory, "get_personality"):
                 context["personality"] = self.memory.get_personality()
 
-            if hasattr(self.memory, 'search'):
+            if hasattr(self.memory, "search"):
                 memories = await self.memory.search(query, limit=5)
                 context["relevant_memories"] = [
-                    {"content": m.content, "category": m.category}
-                    for m in memories
+                    {"content": m.content, "category": m.category} for m in memories
                 ]
 
-            if hasattr(self.memory, 'get_standards'):
+            if hasattr(self.memory, "get_standards"):
                 standards = await self.memory.get_standards()
                 context["standards"] = [
-                    {"content": s.content, "category": s.category}
-                    for s in standards
+                    {"content": s.content, "category": s.category} for s in standards
                 ]
 
         except Exception as e:
@@ -612,22 +638,19 @@ class AgentLoop:
 
         if self.understanding:
             try:
-                ctx.intent = await self.understanding.parse(
-                    ctx.filtered_input, ctx.memory_context
-                )
-                ctx.needs_clarification = getattr(ctx.intent, 'needs_clarification', False)
-                ctx.clarification_question = getattr(ctx.intent, 'clarification_question', '')
+                ctx.intent = await self.understanding.parse(ctx.filtered_input, ctx.memory_context)
+                ctx.needs_clarification = getattr(ctx.intent, "needs_clarification", False)
+                ctx.clarification_question = getattr(ctx.intent, "clarification_question", "")
 
                 if ctx.needs_clarification:
-                    logger.info(
-                        f"[{ctx.loop_id}] 需要追问: {ctx.clarification_question}"
-                    )
+                    logger.info(f"[{ctx.loop_id}] 需要追问: {ctx.clarification_question}")
                     return
 
             except Exception as e:
                 logger.warning(f"意图解析失败（降级为 unknown）: {e}")
                 # 降级：创建一个 unknown 意图
                 from src.understanding.engine import Intent
+
                 ctx.intent = Intent(
                     type="unknown",
                     content=ctx.filtered_input,
@@ -636,6 +659,7 @@ class AgentLoop:
         else:
             # 没有理解引擎，直接标记为需要 LLM 处理
             from src.understanding.engine import Intent
+
             ctx.intent = Intent(
                 type="llm_chat",
                 content=ctx.filtered_input,
@@ -660,8 +684,8 @@ class AgentLoop:
         """
         logger.debug(f"[{ctx.loop_id}] ③ 规划阶段")
 
-        intent_type = getattr(ctx.intent, 'type', 'unknown')
-        requires_approval = getattr(ctx.intent, 'requires_approval', False)
+        intent_type = getattr(ctx.intent, "type", "unknown")
+        requires_approval = getattr(ctx.intent, "requires_approval", False)
 
         # 映射意图类型到操作类型
         operation_map = {
@@ -727,7 +751,10 @@ class AgentLoop:
                         await self.snapshot_manager.save_snapshot(
                             task_id=exec_result.task_id,
                             step_index=exec_result.steps_completed,
-                            state={"operation": ctx.operation_type, "result": ctx.execution_result[:200]},
+                            state={
+                                "operation": ctx.operation_type,
+                                "result": ctx.execution_result[:200],
+                            },
                         )
                     except Exception as snap_err:
                         logger.warning(f"快照保存失败（非阻塞）: {snap_err}")
@@ -741,14 +768,15 @@ class AgentLoop:
         # V2: SubAgent 任务执行
         if ctx.operation_type == "subagent_task" and self.subagent_manager is not None:
             try:
-                task_data = getattr(ctx.intent, 'metadata', {}).get('subagent_task', {})
+                task_data = getattr(ctx.intent, "metadata", {}).get("subagent_task", {})
                 if task_data:
                     from src.execution.sub_agent_manager import SubAgentTask
+
                     task = SubAgentTask(
-                        description=task_data.get('description', ''),
-                        tool_name=task_data.get('tool_name', ''),
-                        tool_params=task_data.get('tool_params', {}),
-                        timeout_seconds=task_data.get('timeout_seconds', None),
+                        description=task_data.get("description", ""),
+                        tool_name=task_data.get("tool_name", ""),
+                        tool_params=task_data.get("tool_params", {}),
+                        timeout_seconds=task_data.get("timeout_seconds", None),
                     )
                     subagent = await self.subagent_manager.spawn(task)
                     completed = await self.subagent_manager.wait(subagent.id)
@@ -794,7 +822,7 @@ class AgentLoop:
             ctx.execution_result = "记忆系统未初始化"
             return
 
-        target_layer = getattr(ctx.intent, 'target_layer', 'core')
+        target_layer = getattr(ctx.intent, "target_layer", "core")
         await self.memory.remember(
             content=ctx.filtered_input,
             layer=target_layer,
@@ -831,8 +859,8 @@ class AgentLoop:
             ctx.execution_result = "工具系统未初始化"
             return
 
-        tool_name = getattr(ctx.intent, 'metadata', {}).get('tool_name', '')
-        tool_params = getattr(ctx.intent, 'metadata', {}).get('tool_params', {})
+        tool_name = getattr(ctx.intent, "metadata", {}).get("tool_name", "")
+        tool_params = getattr(ctx.intent, "metadata", {}).get("tool_params", {})
 
         if tool_name:
             ctx.tool_result = await self.tools.execute(tool_name, tool_params)
@@ -868,19 +896,22 @@ class AgentLoop:
             system_parts.append("相关记忆:\n" + "\n".join(mem_lines))
 
         if system_parts:
-            messages.append({
-                "role": "system",
-                "content": "\n\n".join(system_parts),
-            })
+            messages.append(
+                {
+                    "role": "system",
+                    "content": "\n\n".join(system_parts),
+                }
+            )
 
         messages.append({"role": "user", "content": ctx.filtered_input})
 
         # 调用 LLM
         try:
             from src.llm.provider import LLMRequest
+
             request = LLMRequest(
                 messages=messages,
-                model=getattr(self.llm, 'model', 'gpt-4o'),
+                model=getattr(self.llm, "model", "gpt-4o"),
             )
             ctx.llm_result = await self.llm.chat(request)
 
@@ -936,9 +967,9 @@ class AgentLoop:
                 logger.warning(f"ResultVerifier 检查失败（降级跳过）: {e}")
 
         # V2: GoalAnchor 目标锚定检查
-        if self.goal_anchor and ctx.execution_result and hasattr(ctx, 'intent') and ctx.intent:
+        if self.goal_anchor and ctx.execution_result and hasattr(ctx, "intent") and ctx.intent:
             try:
-                goal = getattr(ctx.intent, 'content', ctx.filtered_input) or ctx.filtered_input
+                goal = getattr(ctx.intent, "content", ctx.filtered_input) or ctx.filtered_input
                 anchor_result = self.goal_anchor.check(
                     goal=goal,
                     current=ctx.execution_result[:200],
@@ -947,17 +978,17 @@ class AgentLoop:
                 if anchor_result.action in ("stop", "ask_user"):
                     ctx.is_off_track = True
                     ctx.off_track_reason = anchor_result.suggestion
-                    logger.warning(f"[{ctx.loop_id}] GoalAnchor 检测到跑偏: {anchor_result.suggestion}")
+                    logger.warning(
+                        f"[{ctx.loop_id}] GoalAnchor 检测到跑偏: {anchor_result.suggestion}"
+                    )
                     return
             except Exception as e:
                 logger.warning(f"GoalAnchor 检查失败（跳过）: {e}")
 
         # V1: 理解引擎跑偏检查
-        if self.understanding and hasattr(self.understanding, 'is_off_track'):
+        if self.understanding and hasattr(self.understanding, "is_off_track"):
             try:
-                ctx.is_off_track = self.understanding.is_off_track(
-                    ctx.execution_result, ctx.intent
-                )
+                ctx.is_off_track = self.understanding.is_off_track(ctx.execution_result, ctx.intent)
                 if ctx.is_off_track:
                     ctx.off_track_reason = "理解引擎判定跑偏"
             except Exception as e:
@@ -989,7 +1020,7 @@ class AgentLoop:
             try:
                 # V2: 触发记忆淘汰检查（宽进严出）
                 # 每次写入新记忆后，检查是否需要淘汰低价值记忆
-                if hasattr(self.memory, 'check_and_evict'):
+                if hasattr(self.memory, "check_and_evict"):
                     try:
                         evict_result = await self.memory.check_and_evict(
                             current_input=ctx.user_input,
@@ -1049,7 +1080,7 @@ class AgentLoop:
         if self.background_manager is not None:
             try:
                 await self.background_manager.on_conversation_end(
-                    storage=getattr(self.memory, 'storage', None) if self.memory else None,
+                    storage=getattr(self.memory, "storage", None) if self.memory else None,
                     memory_manager=self.memory,
                 )
                 ctx.background_tasks_triggered = True
@@ -1086,8 +1117,12 @@ class AgentLoop:
         """
         current = ctx.personality_state
         target = PersonalityState(
-            H=current.H, E=current.E, X=current.X,
-            A=current.A, C=current.C, O=current.O,
+            H=current.H,
+            E=current.E,
+            X=current.X,
+            A=current.A,
+            C=current.C,
+            O=current.O,
         )
 
         if ctx.is_off_track and ctx.retry_count > 0:
@@ -1134,7 +1169,11 @@ class AgentLoop:
                     verification_report=ctx.verify_report,
                     execution_result=ctx.exec_result,
                 )
-                ctx.response = report.user_summary.get("conclusion", "") if hasattr(report, 'user_summary') else str(report)
+                ctx.response = (
+                    report.user_summary.get("conclusion", "")
+                    if hasattr(report, "user_summary")
+                    else str(report)
+                )
                 return
             except Exception as e:
                 logger.warning(f"ReportGenerator 生成失败（降级）: {e}")

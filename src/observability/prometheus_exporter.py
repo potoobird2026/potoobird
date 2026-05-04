@@ -30,6 +30,7 @@ logger = logging.getLogger("long_agent.observability")
 # 指标收集（无 prometheus_client 依赖时的兼容实现）
 # ============================================================
 
+
 class _HistogramCompat:
     """Histogram 兼容实现（有 prometheus_client 时替换为真实 Histogram）"""
 
@@ -51,7 +52,11 @@ class _HistogramCompat:
             "avg": sum(self._values) / len(self._values),
             "min": min(self._values),
             "max": max(self._values),
-            "p95": sorted(self._values)[int(len(self._values) * 0.95)] if len(self._values) > 1 else self._values[0],
+            "p95": (
+                sorted(self._values)[int(len(self._values) * 0.95)]
+                if len(self._values) > 1
+                else self._values[0]
+            ),
         }
 
 
@@ -74,9 +79,11 @@ class _CounterCompat:
 # PrometheusExporter
 # ============================================================
 
+
 @dataclass
 class MetricSnapshot:
     """指标快照"""
+
     timestamp: str = ""
     llm_latency: dict = field(default_factory=dict)
     memory_retrieval_latency: dict = field(default_factory=dict)
@@ -99,8 +106,7 @@ class PrometheusExporter:
         exporter.save_state("/tmp/metrics.json")
     """
 
-    def __init__(self, pushgateway_url: str = None,
-                 state_path: str = None):
+    def __init__(self, pushgateway_url: str = None, state_path: str = None):
         """
         Args:
             pushgateway_url: Prometheus Pushgateway URL（None 时不推送）
@@ -110,21 +116,13 @@ class PrometheusExporter:
         self._state_path = state_path or "./data/metrics_snapshot.json"
 
         # 关键指标
-        self.LLM_LATENCY = _HistogramCompat(
-            'llm_call_latency_seconds', 'LLM 调用延迟'
-        )
+        self.LLM_LATENCY = _HistogramCompat("llm_call_latency_seconds", "LLM 调用延迟")
         self.MEMORY_RETRIEVAL_LATENCY = _HistogramCompat(
-            'memory_retrieval_latency_seconds', '记忆检索延迟'
+            "memory_retrieval_latency_seconds", "记忆检索延迟"
         )
-        self.AGENT_LOOP_DURATION = _HistogramCompat(
-            'agent_loop_duration_seconds', '主循环耗时'
-        )
-        self.COMPRESSION_RATIO = _HistogramCompat(
-            'context_compression_ratio', '上下文压缩比'
-        )
-        self.LLM_ERROR_RATE = _CounterCompat(
-            'llm_errors_total', 'LLM 错误计数'
-        )
+        self.AGENT_LOOP_DURATION = _HistogramCompat("agent_loop_duration_seconds", "主循环耗时")
+        self.COMPRESSION_RATIO = _HistogramCompat("context_compression_ratio", "上下文压缩比")
+        self.LLM_ERROR_RATE = _CounterCompat("llm_errors_total", "LLM 错误计数")
 
         logger.info("PrometheusExporter 初始化完成")
 

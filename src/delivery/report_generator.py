@@ -11,7 +11,6 @@ ConfirmationManager — 任务确认管理器
 设计文档：04_交付层设计.md §五 §六
 """
 
-import json
 import logging
 import uuid
 from dataclasses import dataclass, field
@@ -25,6 +24,7 @@ logger = logging.getLogger("long_agent.delivery")
 @dataclass
 class DeliveryReport:
     """交付报告 — 分层设计"""
+
     task_id: str = ""
     conclusion: str = ""
     summary: str = ""
@@ -46,10 +46,13 @@ class ReportGenerator:
     报告生成器 — 金字塔原理 + 分层报告
     """
 
-    def generate(self, verification_report,
-                 execution_result=None,
-                 compression_record: dict = None,
-                 lessons: list = None) -> DeliveryReport:
+    def generate(
+        self,
+        verification_report,
+        execution_result=None,
+        compression_record: dict = None,
+        lessons: list = None,
+    ) -> DeliveryReport:
         """生成交付报告"""
         conclusion = self._generate_conclusion(verification_report)
         summary = self._generate_summary(verification_report)
@@ -131,14 +134,18 @@ class ReportGenerator:
     def _generate_details(self, report) -> list:
         details = []
         for item in report.items:
-            status_icon = {"passed": "✅", "failed": "❌", "error": "⚠️", "skipped": "⏭️"}.get(item.status.value, "❓")
-            details.append({
-                "status": f"{status_icon} {item.status.value}",
-                "criterion": item.criterion,
-                "evidence": item.evidence[:100] if item.evidence else "",
-                "error": item.error[:100] if item.error else "",
-                "duration": f"{item.duration:.1f}s",
-            })
+            status_icon = {"passed": "✅", "failed": "❌", "error": "⚠️", "skipped": "⏭️"}.get(
+                item.status.value, "❓"
+            )
+            details.append(
+                {
+                    "status": f"{status_icon} {item.status.value}",
+                    "criterion": item.criterion,
+                    "evidence": item.evidence[:100] if item.evidence else "",
+                    "error": item.error[:100] if item.error else "",
+                    "duration": f"{item.duration:.1f}s",
+                }
+            )
         return details
 
     def _generate_suggestions(self, report) -> list:
@@ -163,6 +170,7 @@ class ReportGenerator:
 
 # === ConfirmationManager ===
 
+
 class ConfirmationStatus(Enum):
     PENDING = "pending"
     CONFIRMED = "confirmed"
@@ -174,6 +182,7 @@ class ConfirmationStatus(Enum):
 @dataclass
 class TaskConfirmation:
     """任务确认单"""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     task_id: str = ""
     task_title: str = ""
@@ -209,16 +218,21 @@ class ConfirmationManager:
         self._history: list[TaskConfirmation] = []
 
     async def request_confirmation(
-        self, task_id: str, task_title: str,
-        execution_result: str, step_log: list,
+        self,
+        task_id: str,
+        task_title: str,
+        execution_result: str,
+        step_log: list,
         deviation_log: list = None,
         verification_results: dict = None,
         timeout_seconds: int = 3600,
     ) -> TaskConfirmation:
         """任务执行完成后，请求用户确认"""
         confirmation = TaskConfirmation(
-            task_id=task_id, task_title=task_title,
-            execution_result=execution_result, step_log=step_log,
+            task_id=task_id,
+            task_title=task_title,
+            execution_result=execution_result,
+            step_log=step_log,
             deviation_log=deviation_log or [],
             verification_results=verification_results or {},
             timeout_seconds=timeout_seconds,
@@ -226,8 +240,7 @@ class ConfirmationManager:
         self._pending[confirmation.id] = confirmation
         return confirmation
 
-    async def handle_user_response(self, confirmation_id: str,
-                                     response: str) -> TaskConfirmation:
+    async def handle_user_response(self, confirmation_id: str, response: str) -> TaskConfirmation:
         """处理用户确认响应"""
         confirmation = self._pending.get(confirmation_id)
         if not confirmation:

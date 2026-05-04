@@ -22,13 +22,13 @@ import json
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 class DeliverableType(Enum):
     """交付物类型"""
+
     CODE = "code"
     DOCUMENT = "document"
     REPORT = "report"
@@ -39,25 +39,27 @@ class DeliverableType(Enum):
 @dataclass
 class AcceptanceCriterion:
     """一条验收标准"""
-    description: str                         # 标准描述
-    test_method: str                         # 测试方法（可自动执行的命令/脚本）
-    is_automated: bool = True                # 是否可以自动测试
-    priority: int = 3                        # 优先级 1-5
+
+    description: str  # 标准描述
+    test_method: str  # 测试方法（可自动执行的命令/脚本）
+    is_automated: bool = True  # 是否可以自动测试
+    priority: int = 3  # 优先级 1-5
 
 
 @dataclass
 class DeliverablePlan:
     """可交付性计划"""
-    intent_id: str = ""                      # 关联的 Intent ID
-    deliverable_type: str = ""               # 交付物类型：代码/文档/报告/...
-    deliverable_description: str = ""         # 交付物描述
+
+    intent_id: str = ""  # 关联的 Intent ID
+    deliverable_type: str = ""  # 交付物类型：代码/文档/报告/...
+    deliverable_description: str = ""  # 交付物描述
     acceptance_criteria: list = field(default_factory=list)  # 验收标准列表[AcceptanceCriterion]
-    test_command: str = ""                   # 自动测试命令
-    required_resources: dict = field(default_factory=dict)   # 所需资源
-    estimated_steps: int = 0                 # 预估步骤数
-    feasibility: float = 0.0                 # 可行性 0-1
-    feasibility_notes: str = ""              # 可行性说明
-    id: str = ""                             # 自身 ID
+    test_command: str = ""  # 自动测试命令
+    required_resources: dict = field(default_factory=dict)  # 所需资源
+    estimated_steps: int = 0  # 预估步骤数
+    feasibility: float = 0.0  # 可行性 0-1
+    feasibility_notes: str = ""  # 可行性说明
+    id: str = ""  # 自身 ID
 
 
 class DeliverableValidator:
@@ -98,10 +100,10 @@ class DeliverableValidator:
             DeliverablePlan: 可交付性计划
         """
         # 对话/问答类型不需要交付物
-        intent_type = getattr(intent, 'type', '')
-        if intent_type in ('llm_chat', 'conversation', 'question'):
+        intent_type = getattr(intent, "type", "")
+        if intent_type in ("llm_chat", "conversation", "question"):
             return DeliverablePlan(
-                intent_id=getattr(intent, 'id', '') or getattr(intent, 'content', '')[:20],
+                intent_id=getattr(intent, "id", "") or getattr(intent, "content", "")[:20],
                 feasibility_notes=f"{intent_type}类型，不需要可交付性评估",
                 feasibility=1.0,
             )
@@ -111,7 +113,7 @@ class DeliverableValidator:
         else:
             plan = self._evaluate_with_rules(intent)
 
-        plan.intent_id = getattr(intent, 'id', '') or getattr(intent, 'content', '')[:20]
+        plan.intent_id = getattr(intent, "id", "") or getattr(intent, "content", "")[:20]
 
         logger.info(
             f"可交付性评估 [{plan.id}]: "
@@ -123,8 +125,8 @@ class DeliverableValidator:
 
     async def _evaluate_with_llm(self, intent) -> DeliverablePlan:
         """用 LLM 评估可交付性"""
-        intent_type = getattr(intent, 'type', '')
-        content = getattr(intent, 'content', '')
+        intent_type = getattr(intent, "type", "")
+        content = getattr(intent, "content", "")
 
         prompt = f"""分析以下任务，定义交付物和验收标准。
 
@@ -186,11 +188,11 @@ class DeliverableValidator:
 
     def _evaluate_with_rules(self, intent) -> DeliverablePlan:
         """规则评估（无 LLM 时的降级方案）"""
-        intent_type = getattr(intent, 'type', '')
-        content = getattr(intent, 'content', '')
+        intent_type = getattr(intent, "type", "")
+        content = getattr(intent, "content", "")
 
         # 开发类任务 → 代码交付物
-        dev_types = {'memory_write', 'tool_call', 'subagent_task'}
+        dev_types = {"memory_write", "tool_call", "subagent_task"}
         if intent_type in dev_types:
             return DeliverablePlan(
                 deliverable_type="代码",
@@ -198,7 +200,7 @@ class DeliverableValidator:
                 acceptance_criteria=[
                     AcceptanceCriterion(
                         description="代码能运行",
-                        test_method=f"运行相关测试",
+                        test_method="运行相关测试",
                         is_automated=True,
                         priority=5,
                     ),

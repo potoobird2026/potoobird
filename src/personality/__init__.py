@@ -3,30 +3,30 @@
 """
 
 from src.personality.algorithms import (
-    # PID 控制器
-    PIDConfig,
-    PIDController,
-    # 卡尔曼滤波
-    KalmanConfig,
-    KalmanFilter1D,
-    # 模糊控制
-    FuzzyRule,
-    FuzzyController,
-    # 人格状态 & 融合引擎
-    PersonalityState,
-    PersonalityFusionEngine,
     # 贝叶斯推断
     BayesianConfig,
     BayesianUpdate,
     # 信息熵控制器
     EntropyConfig,
     EntropyController,
-    # 多臂老虎机
-    UCB1Config,
-    UCB1Bandit,
+    FuzzyController,
+    # 模糊控制
+    FuzzyRule,
+    # 卡尔曼滤波
+    KalmanConfig,
+    KalmanFilter1D,
+    PersonalityFusionEngine,
+    # 人格状态 & 融合引擎
+    PersonalityState,
+    # PID 控制器
+    PIDConfig,
+    PIDController,
     # 强化学习
     RLConfig,
     RLPersonalityAgent,
+    UCB1Bandit,
+    # 多臂老虎机
+    UCB1Config,
 )
 
 __all__ = [

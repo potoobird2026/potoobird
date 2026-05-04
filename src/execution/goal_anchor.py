@@ -16,7 +16,6 @@ import logging
 import math
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Optional
 
 logger = logging.getLogger("long_agent.execution.goal_anchor")
 
@@ -24,12 +23,13 @@ logger = logging.getLogger("long_agent.execution.goal_anchor")
 @dataclass
 class AnchorResult:
     """锚定检查结果"""
+
     similarity: float = 0.0
     deviation: float = 0.0
     deviation_vector: dict = field(default_factory=dict)
     dynamic_threshold: float = 0.5
     is_on_track: bool = True
-    action: str = "continue"       # continue / correct / ask_user / stop
+    action: str = "continue"  # continue / correct / ask_user / stop
     suggestion: str = ""
     details: dict = field(default_factory=dict)
 
@@ -71,10 +71,9 @@ class GoalAnchor:
         base 值由 LLM 根据任务类型动态评估，不写死。
         """
         base = self.base_threshold if self.base_threshold is not None else 0.5
-        return base + 0.4 * (progress ** 2)
+        return base + 0.4 * (progress**2)
 
-    def check(self, goal: str, current: str,
-              progress: float = 0.0) -> AnchorResult:
+    def check(self, goal: str, current: str, progress: float = 0.0) -> AnchorResult:
         """
         检查当前状态是否偏离目标
 
@@ -95,9 +94,11 @@ class GoalAnchor:
             "edit": edit_dist,
             "semantic": 1 - jaccard_sim,
         }
-        deviation = (deviation_vector["cosine"] * 0.4 +
-                     deviation_vector["edit"] * 0.3 +
-                     deviation_vector["semantic"] * 0.3)
+        deviation = (
+            deviation_vector["cosine"] * 0.4
+            + deviation_vector["edit"] * 0.3
+            + deviation_vector["semantic"] * 0.3
+        )
         similarity = 1 - deviation
 
         dynamic_threshold = self.get_dynamic_threshold(progress)
@@ -125,8 +126,7 @@ class GoalAnchor:
                 "goal_keywords": self._extract_keywords(goal),
                 "current_keywords": self._extract_keywords(current),
                 "common_keywords": list(
-                    set(self._extract_keywords(goal)) &
-                    set(self._extract_keywords(current))
+                    set(self._extract_keywords(goal)) & set(self._extract_keywords(current))
                 ),
             },
         )
@@ -175,8 +175,8 @@ class GoalAnchor:
         vec_b = Counter(tokens_b)
         all_tokens = set(vec_a.keys()) | set(vec_b.keys())
         dot_product = sum(vec_a.get(t, 0) * vec_b.get(t, 0) for t in all_tokens)
-        mag_a = math.sqrt(sum(v ** 2 for v in vec_a.values()))
-        mag_b = math.sqrt(sum(v ** 2 for v in vec_b.values()))
+        mag_a = math.sqrt(sum(v**2 for v in vec_a.values()))
+        mag_b = math.sqrt(sum(v**2 for v in vec_b.values()))
         if mag_a == 0 or mag_b == 0:
             return 0.0
         return dot_product / (mag_a * mag_b)
@@ -195,8 +195,8 @@ class GoalAnchor:
             dp[0][j] = j
         for i in range(1, m + 1):
             for j in range(1, n + 1):
-                cost = 0 if text_a[i-1] == text_b[j-1] else 1
-                dp[i][j] = min(dp[i-1][j] + 1, dp[i][j-1] + 1, dp[i-1][j-1] + cost)
+                cost = 0 if text_a[i - 1] == text_b[j - 1] else 1
+                dp[i][j] = min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost)
         max_len = max(m, n)
         return dp[m][n] / max_len if max_len > 0 else 0.0
 
@@ -215,9 +215,9 @@ class GoalAnchor:
         text = text.lower().strip()
         if not text:
             return []
-        has_chinese = any('\u4e00' <= c <= '\u9fff' for c in text)
+        has_chinese = any("\u4e00" <= c <= "\u9fff" for c in text)
         if has_chinese:
-            chars = [c for c in text if c.isalnum() or '\u4e00' <= c <= '\u9fff']
+            chars = [c for c in text if c.isalnum() or "\u4e00" <= c <= "\u9fff"]
             return [chars[i] + chars[i + 1] for i in range(len(chars) - 1)]
         return text.split()
 

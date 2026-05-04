@@ -11,25 +11,25 @@ ResultVerifier — 结果验证器
 """
 
 import logging
-import subprocess
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 logger = logging.getLogger("long_agent.delivery.result_verifier")
 
 
 class VerificationLevel(Enum):
     """验证级别"""
-    L1_STATIC = 1       # 静态检查
-    L2_DYNAMIC = 2      # 动态测试
-    L3_MANUAL = 3       # 人工确认
+
+    L1_STATIC = 1  # 静态检查
+    L2_DYNAMIC = 2  # 动态测试
+    L3_MANUAL = 3  # 人工确认
 
 
 class VerificationStatus(Enum):
     """验证状态"""
+
     PASSED = "passed"
     FAILED = "failed"
     SKIPPED = "skipped"
@@ -39,6 +39,7 @@ class VerificationStatus(Enum):
 @dataclass
 class VerificationItem:
     """一条验证结果"""
+
     criterion: str = ""
     level: VerificationLevel = VerificationLevel.L1_STATIC
     status: VerificationStatus = VerificationStatus.SKIPPED
@@ -51,6 +52,7 @@ class VerificationItem:
 @dataclass
 class VerificationReport:
     """验证报告"""
+
     task_id: str = ""
     intent_id: str = ""
     overall_status: VerificationStatus = VerificationStatus.SKIPPED
@@ -58,13 +60,16 @@ class VerificationReport:
     summary: str = ""
     evidence_chain: list = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.now)
-    id: str = field(default_factory=lambda: __import__('uuid').uuid4().hex[:8])
+    id: str = field(default_factory=lambda: __import__("uuid").uuid4().hex[:8])
 
     @property
     def pass_rate(self) -> float:
         """通过率"""
-        completed = [i for i in self.items
-                     if i.status in (VerificationStatus.PASSED, VerificationStatus.FAILED)]
+        completed = [
+            i
+            for i in self.items
+            if i.status in (VerificationStatus.PASSED, VerificationStatus.FAILED)
+        ]
         if not completed:
             return 0.0
         return sum(1 for i in completed if i.status == VerificationStatus.PASSED) / len(completed)
@@ -120,22 +125,22 @@ class ResultVerifier:
         4. 综合判断（风险自适应阈值）
         5. 构建证据链
         """
-        task_id = getattr(execution_result, 'task_id', '')
-        intent_id = getattr(execution_result, 'intent_id', '')
+        task_id = getattr(execution_result, "task_id", "")
+        intent_id = getattr(execution_result, "intent_id", "")
 
         report = VerificationReport(
             task_id=task_id,
             intent_id=intent_id,
         )
 
-        criteria = getattr(deliverable_plan, 'acceptance_criteria', [])
+        criteria = getattr(deliverable_plan, "acceptance_criteria", [])
         if not criteria:
             report.overall_status = VerificationStatus.SKIPPED
             report.summary = "没有定义验收标准，跳过自动验证"
             return report
 
         # L1：静态检查
-        l1_items = [c for c in criteria if getattr(c, 'is_automated', False)]
+        l1_items = [c for c in criteria if getattr(c, "is_automated", False)]
         l1_results = await self._run_static_checks(l1_items)
         report.items.extend(l1_results)
 
@@ -154,8 +159,7 @@ class ResultVerifier:
         all_auto_results = l1_results + l2_results
         overall_pass_rate = self._calc_pass_rate(all_auto_results)
         risk_level = self._assess_risk_level(
-            getattr(deliverable_plan, 'description', ''),
-            {"criteria_count": len(criteria)}
+            getattr(deliverable_plan, "description", ""), {"criteria_count": len(criteria)}
         )
         threshold = self._get_pass_rate_threshold(risk_level)
 
@@ -182,7 +186,7 @@ class ResultVerifier:
             start_time = time.time()
             try:
                 result = VerificationItem(
-                    criterion=getattr(criterion, 'description', str(criterion)),
+                    criterion=getattr(criterion, "description", str(criterion)),
                     level=VerificationLevel.L1_STATIC,
                     status=VerificationStatus.PASSED,
                     evidence="静态检查通过（占位）",
@@ -190,13 +194,15 @@ class ResultVerifier:
                 )
                 results.append(result)
             except Exception as e:
-                results.append(VerificationItem(
-                    criterion=getattr(criterion, 'description', str(criterion)),
-                    level=VerificationLevel.L1_STATIC,
-                    status=VerificationStatus.ERROR,
-                    error=str(e),
-                    duration=time.time() - start_time,
-                ))
+                results.append(
+                    VerificationItem(
+                        criterion=getattr(criterion, "description", str(criterion)),
+                        level=VerificationLevel.L1_STATIC,
+                        status=VerificationStatus.ERROR,
+                        error=str(e),
+                        duration=time.time() - start_time,
+                    )
+                )
         return results
 
     async def _run_dynamic_tests(self, criteria: list) -> list:
@@ -206,7 +212,7 @@ class ResultVerifier:
             start_time = time.time()
             try:
                 result = VerificationItem(
-                    criterion=getattr(criterion, 'description', str(criterion)),
+                    criterion=getattr(criterion, "description", str(criterion)),
                     level=VerificationLevel.L2_DYNAMIC,
                     status=VerificationStatus.PASSED,
                     evidence="动态测试通过（占位）",
@@ -214,29 +220,35 @@ class ResultVerifier:
                 )
                 results.append(result)
             except Exception as e:
-                results.append(VerificationItem(
-                    criterion=getattr(criterion, 'description', str(criterion)),
-                    level=VerificationLevel.L2_DYNAMIC,
-                    status=VerificationStatus.ERROR,
-                    error=str(e),
-                    duration=time.time() - start_time,
-                ))
+                results.append(
+                    VerificationItem(
+                        criterion=getattr(criterion, "description", str(criterion)),
+                        level=VerificationLevel.L2_DYNAMIC,
+                        status=VerificationStatus.ERROR,
+                        error=str(e),
+                        duration=time.time() - start_time,
+                    )
+                )
         return results
 
     def _calc_pass_rate(self, items: list) -> float:
         """计算通过率"""
-        completed = [i for i in items
-                     if i.status in (VerificationStatus.PASSED, VerificationStatus.FAILED)]
+        completed = [
+            i for i in items if i.status in (VerificationStatus.PASSED, VerificationStatus.FAILED)
+        ]
         if not completed:
             return 0.0
         return sum(1 for i in completed if i.status == VerificationStatus.PASSED) / len(completed)
 
     def _build_evidence_chain(self, items: list) -> list:
         """构建证据链"""
-        return [{
-            "criterion": item.criterion,
-            "level": item.level.value,
-            "status": item.status.value,
-            "evidence": item.evidence[:200],
-            "timestamp": item.timestamp.isoformat(),
-        } for item in items]
+        return [
+            {
+                "criterion": item.criterion,
+                "level": item.level.value,
+                "status": item.status.value,
+                "evidence": item.evidence[:200],
+                "timestamp": item.timestamp.isoformat(),
+            }
+            for item in items
+        ]

@@ -29,8 +29,7 @@ MemoryLoader — 动态记忆加载器
 import logging
 import math
 import time
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 logger = logging.getLogger("long_agent.memory.loader")
 
@@ -46,11 +45,12 @@ class LoadBudget:
     - high_value: 20%（高价值：香农熵最高的记忆）
     - anchor: 10%（锚点：不可淘汰的记忆）
     """
-    total_tokens: int = 0       # 总 Token 预算（来自 ModelConfig.context_window）
-    hot_zone: int = 0           # 热区预算（40%）
-    relevant: int = 0           # 相关预算（30%）
-    high_value: int = 0         # 高价值预算（20%）
-    anchor: int = 0             # 锚点预算（10%）
+
+    total_tokens: int = 0  # 总 Token 预算（来自 ModelConfig.context_window）
+    hot_zone: int = 0  # 热区预算（40%）
+    relevant: int = 0  # 相关预算（30%）
+    high_value: int = 0  # 高价值预算（20%）
+    anchor: int = 0  # 锚点预算（10%）
 
     @classmethod
     def from_context_window(cls, context_window: int) -> "LoadBudget":
@@ -66,22 +66,23 @@ class LoadBudget:
         # 预算比例来源："开始的上下文.txt" §Token预算分配
         budget = cls()
         budget.total_tokens = context_window
-        budget.hot_zone = int(context_window * 0.40)    # 热区 40%
-        budget.relevant = int(context_window * 0.30)    # 相关 30%
+        budget.hot_zone = int(context_window * 0.40)  # 热区 40%
+        budget.relevant = int(context_window * 0.30)  # 相关 30%
         budget.high_value = int(context_window * 0.20)  # 高价值 20%
-        budget.anchor = int(context_window * 0.10)      # 锚点 10%
+        budget.anchor = int(context_window * 0.10)  # 锚点 10%
         return budget
 
 
 @dataclass
 class MemoryCandidate:
     """记忆候选（带评分）"""
+
     memory: dict
-    relevance_score: float = 0.0    # 互信息评分 I(X;Y)
-    value_score: float = 0.0        # 香农熵评分 H(X)
-    hot_score: float = 0.0          # 热区评分（访问频率 + 最近访问）
-    is_anchor: bool = False         # 是否为锚点
-    estimated_tokens: int = 0       # 预估 token 数
+    relevance_score: float = 0.0  # 互信息评分 I(X;Y)
+    value_score: float = 0.0  # 香农熵评分 H(X)
+    hot_score: float = 0.0  # 热区评分（访问频率 + 最近访问）
+    is_anchor: bool = False  # 是否为锚点
+    estimated_tokens: int = 0  # 预估 token 数
 
 
 class MemoryLoader:
@@ -179,14 +180,16 @@ class MemoryLoader:
             # 预估 token 数
             estimated_tokens = max(1, len(content) // 4)  # 简化：4 chars ≈ 1 token
 
-            candidates.append(MemoryCandidate(
-                memory=mem,
-                relevance_score=relevance_score,
-                value_score=value_score,
-                hot_score=hot_score,
-                is_anchor=is_anchor,
-                estimated_tokens=estimated_tokens,
-            ))
+            candidates.append(
+                MemoryCandidate(
+                    memory=mem,
+                    relevance_score=relevance_score,
+                    value_score=value_score,
+                    hot_score=hot_score,
+                    is_anchor=is_anchor,
+                    estimated_tokens=estimated_tokens,
+                )
+            )
 
         return candidates
 
@@ -283,8 +286,9 @@ class MemoryLoader:
 
         return 0.5 * freq_score + 0.5 * recency_score
 
-    def _calc_mutual_information(self, content: str, current_input: str,
-                                  input_dist: dict = None) -> float:
+    def _calc_mutual_information(
+        self, content: str, current_input: str, input_dist: dict = None
+    ) -> float:
         """
         互信息评分 I(X;Y) = H(X) + H(Y) - H(X,Y)
 

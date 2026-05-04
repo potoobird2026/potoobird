@@ -16,7 +16,6 @@ V2 设计原则：
 """
 
 import logging
-import math
 from dataclasses import dataclass, field
 
 logger = logging.getLogger("long_agent.algorithms.confidence_threshold")
@@ -25,13 +24,14 @@ logger = logging.getLogger("long_agent.algorithms.confidence_threshold")
 @dataclass
 class ConfidenceResult:
     """置信度评估结果"""
-    confidence: float = 0.0          # 当前置信度 P(H|E) ∈ [0, 1]
-    threshold: float = 0.0           # 动态阈值
-    is_confident: bool = False       # 置信度 >= 阈值
+
+    confidence: float = 0.0  # 当前置信度 P(H|E) ∈ [0, 1]
+    threshold: float = 0.0  # 动态阈值
+    is_confident: bool = False  # 置信度 >= 阈值
     needs_clarification: bool = False  # 需要追问
-    prior: float = 0.0               # 先验概率 P(H)
-    posterior: float = 0.0            # 后验概率 P(H|E)
-    evidence_strength: float = 0.0   # 证据强度 P(E|H)
+    prior: float = 0.0  # 先验概率 P(H)
+    posterior: float = 0.0  # 后验概率 P(H|E)
+    evidence_strength: float = 0.0  # 证据强度 P(E|H)
     details: dict = field(default_factory=dict)
 
 
@@ -142,9 +142,9 @@ class ConfidenceThreshold:
         """
         # 基础阈值由风险等级决定（这些默认值仅在 LLM 未覆盖时使用）
         base_thresholds = {
-            "high": 0.85,    # 高风险：需高度确定才执行（如删除、修改人格）
+            "high": 0.85,  # 高风险：需高度确定才执行（如删除、修改人格）
             "medium": 0.65,  # 中风险：中等确定性（如记忆写入）
-            "low": 0.45,     # 低风险：可容忍较低确定性（如查询、闲聊）
+            "low": 0.45,  # 低风险：可容忍较低确定性（如查询、闲聊）
         }
 
         base = base_thresholds.get(risk_level, self.DEFAULT_THRESHOLD)
@@ -199,8 +199,11 @@ class ConfidenceThreshold:
             posterior = confidence
 
         # 动态阈值
-        threshold = self.threshold if self.threshold is not None else \
-            self.get_dynamic_threshold(risk_level, history_accuracy)
+        threshold = (
+            self.threshold
+            if self.threshold is not None
+            else self.get_dynamic_threshold(risk_level, history_accuracy)
+        )
 
         is_confident = posterior >= threshold
         needs_clarification = not is_confident
@@ -241,8 +244,9 @@ class ConfidenceThreshold:
         Returns:
             True 表示需要追问
         """
-        threshold = self.threshold if self.threshold is not None else \
-            self.get_dynamic_threshold(risk_level)
+        threshold = (
+            self.threshold if self.threshold is not None else self.get_dynamic_threshold(risk_level)
+        )
         return confidence < threshold
 
     def get_history(self) -> list[ConfidenceResult]:

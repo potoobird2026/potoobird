@@ -19,6 +19,7 @@ logger = logging.getLogger("long_agent.skill")
 @dataclass
 class SkillDefinition:
     """Skill 完整数据模型（11字段）"""
+
     id: str = ""
     name: str = ""
     description: str = ""
@@ -74,16 +75,27 @@ class SkillRegistry:
 
     def _save_to_db(self, skill: SkillDefinition):
         with sqlite3.connect(self._db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO skills
                 (id, name, description, version, author, enabled,
                  config, tools, hooks, installed_at, updated_at)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?)
-            """, (skill.id, skill.name, skill.description, skill.version, skill.author,
-                  int(skill.enabled), json.dumps(skill.config, ensure_ascii=False),
-                  json.dumps(skill.tools, ensure_ascii=False),
-                  json.dumps(skill.hooks, ensure_ascii=False),
-                  skill.installed_at, skill.updated_at))
+            """,
+                (
+                    skill.id,
+                    skill.name,
+                    skill.description,
+                    skill.version,
+                    skill.author,
+                    int(skill.enabled),
+                    json.dumps(skill.config, ensure_ascii=False),
+                    json.dumps(skill.tools, ensure_ascii=False),
+                    json.dumps(skill.hooks, ensure_ascii=False),
+                    skill.installed_at,
+                    skill.updated_at,
+                ),
+            )
 
     def _delete_from_db(self, skill_id: str):
         with sqlite3.connect(self._db_path) as conn:
@@ -93,12 +105,17 @@ class SkillRegistry:
         with sqlite3.connect(self._db_path) as conn:
             for row in conn.execute("SELECT * FROM skills"):
                 s = SkillDefinition(
-                    id=row[0], name=row[1], description=row[2] or "",
-                    version=row[3] or "0.1.0", author=row[4] or "",
-                    enabled=bool(row[5]), config=json.loads(row[6] or "{}"),
+                    id=row[0],
+                    name=row[1],
+                    description=row[2] or "",
+                    version=row[3] or "0.1.0",
+                    author=row[4] or "",
+                    enabled=bool(row[5]),
+                    config=json.loads(row[6] or "{}"),
                     tools=json.loads(row[7] or "[]"),
                     hooks=json.loads(row[8] or "{}"),
-                    installed_at=row[9] or "", updated_at=row[10] or "",
+                    installed_at=row[9] or "",
+                    updated_at=row[10] or "",
                 )
                 self._skills[s.id] = s
 
@@ -175,8 +192,12 @@ class SkillRegistry:
 
         # 自动 register
         skill = SkillDefinition(
-            id=skill_id, name=name, description=description,
-            version=version, author=author, enabled=True,
+            id=skill_id,
+            name=name,
+            description=description,
+            version=version,
+            author=author,
+            enabled=True,
         )
         return self.register(skill)
 

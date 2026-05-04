@@ -15,8 +15,7 @@ import logging
 import time
 from collections import defaultdict
 from contextlib import contextmanager
-from dataclasses import dataclass, field
-from enum import Enum
+from dataclasses import dataclass
 
 logger = logging.getLogger("long_agent.observability")
 
@@ -24,6 +23,7 @@ logger = logging.getLogger("long_agent.observability")
 # ─────────────────────────────────────────────
 # V1 兼容层（保留，现有测试依赖）
 # ─────────────────────────────────────────────
+
 
 @dataclass
 class MetricSnapshot:

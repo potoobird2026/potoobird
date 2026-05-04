@@ -155,7 +155,7 @@ class UnderstandingEngine:
             {
                 "role": "user",
                 "content": (
-                    '分析以下用户输入的意图，返回 JSON：'
+                    "分析以下用户输入的意图，返回 JSON："
                     '{"type": "memory_write|memory_read|memory_search|llm_chat|unknown", '
                     '"target_layer": "personality|core|standard", '
                     '"confidence": 0.0-1.0, '
@@ -163,12 +163,13 @@ class UnderstandingEngine:
                     '"action": "具体动作", '
                     '"target": "操作对象", '
                     '"reasoning": "推理过程"}'
-                    f'\n\n用户输入：{user_input}'
+                    f"\n\n用户输入：{user_input}"
                 ),
             },
         ]
 
         from src.llm.provider import LLMRequest
+
         request = LLMRequest(messages=messages)
         result = await self._llm.chat(request)
 
@@ -198,8 +199,7 @@ class UnderstandingEngine:
         )
 
     def generate_clarification(
-        self, user_input: str, intent: Intent, attempt: int = 1,
-        personality: dict = None
+        self, user_input: str, intent: Intent, attempt: int = 1, personality: dict = None
     ) -> ClarificationResult:
         """
         生成追问。
@@ -275,8 +275,7 @@ class UnderstandingEngine:
         return question
 
     async def generate_clarification_by_llm(
-        self, user_input: str, intent: Intent, attempt: int = 1,
-        personality: dict = None
+        self, user_input: str, intent: Intent, attempt: int = 1, personality: dict = None
     ) -> ClarificationResult:
         """
         由 LLM 动态生成追问（V2 方法，V1 也可用）。
@@ -330,9 +329,13 @@ class UnderstandingEngine:
 
         try:
             from src.llm.provider import LLMRequest
-            request = LLMRequest(messages=[
-                {"role": "system", "content": system_prompt},
-            ], temperature=0.5)
+
+            request = LLMRequest(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                ],
+                temperature=0.5,
+            )
             result = await self._llm.chat(request)
             if result.is_ok and result.content.strip():
                 return ClarificationResult(
@@ -362,7 +365,9 @@ class UnderstandingEngine:
 
         Returns:
             dict: {
-                "adjustments": [{"dimension": "X", "direction": "decrease", "intensity": 0.5, "reason": "..."}],
+                "adjustments": [  # noqa: E501
+                    {"dimension": "X", "direction": "decrease", "intensity": 0.5, "reason": "..."}
+                ],
                 "sentiment": "positive" | "neutral" | "negative",
                 "method": "rule" | "llm"  # 标识使用的分析方法
             }
@@ -379,9 +384,7 @@ class UnderstandingEngine:
         # 2. 无 LLM → 返回中性，不做关键词降级
         return {"adjustments": [], "sentiment": "neutral", "method": "none"}
 
-    async def _analyze_by_llm(
-        self, user_input: str, current_personality: dict = None
-    ) -> dict:
+    async def _analyze_by_llm(self, user_input: str, current_personality: dict = None) -> dict:
         """基于 LLM 的人格反馈分析（支持任意语言）"""
         system_prompt = (
             "你是一个人格分析引擎。根据用户对 Agent 的反馈，判断需要调整哪些 HEXACO 人格维度。\n\n"
@@ -392,10 +395,13 @@ class UnderstandingEngine:
             "A(宜人性): 高=倾向于同意避免冲突，低=敢于说不\n"
             "C(尽责性): 高=严格执行注重细节，低=粗线条抓大放小\n"
             "O(经验开放性): 高=尝试新方法，低=遵循已有方案\n\n"
-            "当前人格参数：" + (
+            "当前人格参数："
+            + (
                 ", ".join(f"{k}={v}" for k, v in current_personality.items())
-                if current_personality else "未知"
-            ) + "\n\n"
+                if current_personality
+                else "未知"
+            )
+            + "\n\n"
             "输出 JSON："
             '{"adjustments": [{"dimension": "H/E/X/A/C/O", "direction": "increase/decrease", '
             '"intensity": 0.0~1.0, "reason": "原因"}], '
@@ -408,12 +414,14 @@ class UnderstandingEngine:
         ]
 
         from src.llm.provider import LLMRequest
+
         request = LLMRequest(messages=messages, temperature=0.3)
         result = await self._llm.chat(request)
 
         if result.is_ok:
             try:
                 import json
+
                 data = json.loads(result.content)
                 data["method"] = "llm"
                 return data

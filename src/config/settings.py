@@ -158,7 +158,9 @@ except ImportError:
             self.log_level = os.getenv("LONG_AGENT_LOG_LEVEL", "INFO")
             self.log_file = os.getenv("LONG_AGENT_LOG_FILE", "logs/agent.log")
             # V2 可观测性
-            self.log_json_format = os.getenv("LONG_AGENT_LOG_JSON_FORMAT", "false").lower() == "true"
+            self.log_json_format = (
+                os.getenv("LONG_AGENT_LOG_JSON_FORMAT", "false").lower() == "true"
+            )
             self.metrics_enabled = os.getenv("LONG_AGENT_METRICS_ENABLED", "true").lower() == "true"
             self.metrics_port = int(os.getenv("LONG_AGENT_METRICS_PORT", "8001"))
             self.metrics_path = os.getenv("LONG_AGENT_METRICS_PATH", "/metrics")
@@ -173,7 +175,11 @@ except ImportError:
             return self._openai_api_key
 
 
-def init_logging(log_level: str = "INFO", log_file: str = "logs/agent.log", json_format: bool = False):
+def init_logging(
+    log_level: str = "INFO",
+    log_file: str = "logs/agent.log",
+    json_format: bool = False,
+):
     """初始化日志（带轮转，修复 #7）
 
     Args:

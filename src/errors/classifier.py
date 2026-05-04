@@ -166,6 +166,7 @@ class ErrorClassifier:
 
 # ========== V2 升级：自适应重试策略 + LLM 兜底判断 ==========
 
+
 class AdaptiveRetryPolicy:
     """
     自适应重试策略（合并自 hermse v1.3）
@@ -205,6 +206,7 @@ class AdaptiveRetryPolicy:
         公式：delay = base_delay × 2^(attempt-1) + random(0, jitter)
         """
         import random
+
         exponential_delay = self.base_delay * (2 ** (attempt - 1))
         jitter = random.uniform(0, self.base_delay * 0.5)
         return exponential_delay + jitter
@@ -258,11 +260,14 @@ class AdaptiveRetryPolicy:
                 "description": "状态损坏：从快照恢复 max 1次",
             },
         }
-        return policies.get(failure_reason, {
-            "strategy": "none",
-            "max_retries": 0,
-            "description": "未知失败原因：不重试",
-        })
+        return policies.get(
+            failure_reason,
+            {
+                "strategy": "none",
+                "max_retries": 0,
+                "description": "未知失败原因：不重试",
+            },
+        )
 
 
 class LLMBasedErrorClassifier:

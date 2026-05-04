@@ -1,7 +1,6 @@
 """Anthropic Claude Provider"""
 
 import logging
-from abc import ABC
 
 from src.errors.types import ErrorCode, LLMResult
 
@@ -9,6 +8,7 @@ logger = logging.getLogger("long_agent.llm.anthropic")
 
 try:
     import anthropic
+
     HAS_ANTHROPIC = True
 except ImportError:
     HAS_ANTHROPIC = False
@@ -37,8 +37,8 @@ class AnthropicProvider:
             response = await self._client.messages.create(
                 model=self._model,
                 messages=request.messages,
-                max_tokens=getattr(request, 'max_tokens', 2048),
-                temperature=getattr(request, 'temperature', 0.7),
+                max_tokens=getattr(request, "max_tokens", 2048),
+                temperature=getattr(request, "temperature", 0.7),
             )
             content = response.content[0].text if response.content else ""
             return LLMResult.success(

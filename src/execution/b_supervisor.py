@@ -15,7 +15,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Callable
+from typing import Callable, Optional
 
 from src.execution.goal_anchor import GoalAnchor
 from src.execution.snapshot_manager import SnapshotManager
@@ -26,6 +26,7 @@ logger = logging.getLogger("long_agent.execution.b_supervisor")
 
 class ExecutionStatus(Enum):
     """执行状态"""
+
     PENDING = "pending"
     RUNNING = "running"
     PAUSED = "paused"
@@ -37,6 +38,7 @@ class ExecutionStatus(Enum):
 
 class StepStatus(Enum):
     """步骤状态"""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -47,6 +49,7 @@ class StepStatus(Enum):
 @dataclass
 class TaskStep:
     """一个执行步骤"""
+
     index: int = 0
     description: str = ""
     tool_name: str = ""
@@ -62,6 +65,7 @@ class TaskStep:
 @dataclass
 class ExecutionResult:
     """执行结果"""
+
     task_id: str = ""
     status: ExecutionStatus = ExecutionStatus.PENDING
     steps_completed: int = 0
@@ -88,10 +92,13 @@ class BSupervisor:
     - PID 参数: kp/ki/kd 由 Ziegler-Nichols 方法在线整定
     """
 
-    def __init__(self, goal_anchor: GoalAnchor,
-                 snapshot_manager: SnapshotManager,
-                 tool_registry: ToolRegistry,
-                 max_steps: int = None):
+    def __init__(
+        self,
+        goal_anchor: GoalAnchor,
+        snapshot_manager: SnapshotManager,
+        tool_registry: ToolRegistry,
+        max_steps: int = None,
+    ):
         """
         Args:
             goal_anchor: 目标锚定器
@@ -111,8 +118,7 @@ class BSupervisor:
         self._ki = None
         self._kd = None
 
-    async def execute(self, intent, plan,
-                      step_callback: Callable = None) -> ExecutionResult:
+    async def execute(self, intent, plan, step_callback: Callable = None) -> ExecutionResult:
         """
         执行任务（核心入口）
 
@@ -121,27 +127,31 @@ class BSupervisor:
         2. 逐步执行（PID 控制循环）
         3. 返回执行结果
         """
-        task_id = intent.id if hasattr(intent, 'id') else str(uuid.uuid4())[:8]
+        task_id = intent.id if hasattr(intent, "id") else str(uuid.uuid4())[:8]
 
         # 第1步：拆解任务
         steps = self._decompose(intent, plan)
         if not steps:
             return ExecutionResult(
-                task_id=task_id, status=ExecutionStatus.REJECTED,
+                task_id=task_id,
+                status=ExecutionStatus.REJECTED,
                 error="无法拆解任务：目标不明确或超出能力范围",
             )
 
         max_steps = self.max_steps or 50  # 参考值，实际由 LLM 动态评估
         if len(steps) > max_steps:
             return ExecutionResult(
-                task_id=task_id, status=ExecutionStatus.REJECTED,
+                task_id=task_id,
+                status=ExecutionStatus.REJECTED,
                 error=f"任务步骤过多（{len(steps)} > {max_steps}），建议拆分任务",
             )
 
         # 第2步：PID 控制循环
         result = ExecutionResult(
-            task_id=task_id, status=ExecutionStatus.RUNNING,
-            steps_total=len(steps), started_at=datetime.now(),
+            task_id=task_id,
+            status=ExecutionStatus.RUNNING,
+            steps_total=len(steps),
+            started_at=datetime.now(),
         )
 
         for i, step in enumerate(steps):
@@ -151,18 +161,21 @@ class BSupervisor:
 
             # 2a. 保存快照
             self.snapshot_manager.save_snapshot(
-                task_id=task_id, step_index=i,
+                task_id=task_id,
+                step_index=i,
                 state={
-                    "current_step": i, "total_steps": len(steps),
+                    "current_step": i,
+                    "total_steps": len(steps),
                     "description": step.description,
-                    "goal": getattr(plan, 'deliverable_description', ''),
-                }
+                    "goal": getattr(plan, "deliverable_description", ""),
+                },
             )
 
             # 2b. 执行工具
             try:
                 tool_result = await self.tool_registry.execute(
-                    tool_name=step.tool_name, params=step.tool_params,
+                    tool_name=step.tool_name,
+                    params=step.tool_params,
                 )
                 if tool_result.needs_approval:
                     step.status = StepStatus.PENDING
@@ -177,17 +190,17 @@ class BSupervisor:
                     step.error = tool_result.error
                     step.status = StepStatus.FAILED
                     result.status = ExecutionStatus.FAILED
-                    result.error = f"步骤 {i+1} 失败: {step.error}"
+                    result.error = f"步骤 {i + 1} 失败: {step.error}"
                     return result
             except Exception as e:
                 step.error = str(e)
                 step.status = StepStatus.FAILED
                 result.status = ExecutionStatus.FAILED
-                result.error = f"步骤 {i+1} 异常: {e}"
+                result.error = f"步骤 {i + 1} 异常: {e}"
                 return result
 
             # 2c. 目标锚定检查
-            deliverable = getattr(plan, 'deliverable_description', '')
+            deliverable = getattr(plan, "deliverable_description", "")
             if deliverable:
                 current_state = f"{step.description}\n{step.result}"
                 progress = i / len(steps) if steps else 0
@@ -199,7 +212,7 @@ class BSupervisor:
 
                 if anchor_result.action == "stop":
                     result.status = ExecutionStatus.FAILED
-                    result.error = f"步骤 {i+1} 严重偏离目标: {anchor_result.suggestion}"
+                    result.error = f"步骤 {i + 1} 严重偏离目标: {anchor_result.suggestion}"
                     return result
                 elif anchor_result.action == "ask_user":
                     step.result += f"\n[警告] {anchor_result.suggestion}"
@@ -218,16 +231,25 @@ class BSupervisor:
 
     def _decompose(self, intent, plan) -> list:
         """拆解任务为步骤序列（实际实现中调用 LLM 智能拆解）"""
-        estimated_steps = getattr(plan, 'estimated_steps', 0)
+        estimated_steps = getattr(plan, "estimated_steps", 0)
         if estimated_steps > 0:
-            return [TaskStep(
-                index=i, description=f"步骤 {i+1}",
-                tool_name="execute_subtask", tool_params={"subtask_index": i},
-            ) for i in range(estimated_steps)]
-        return [TaskStep(
-            index=0, description=f"{getattr(intent, 'action', '')}{getattr(intent, 'target', '')}",
-            tool_name="execute_task", tool_params={"intent": intent},
-        )]
+            return [
+                TaskStep(
+                    index=i,
+                    description=f"步骤 {i + 1}",
+                    tool_name="execute_subtask",
+                    tool_params={"subtask_index": i},
+                )
+                for i in range(estimated_steps)
+            ]
+        return [
+            TaskStep(
+                index=0,
+                description=f"{getattr(intent, 'action', '')}{getattr(intent, 'target', '')}",
+                tool_name="execute_task",
+                tool_params={"intent": intent},
+            )
+        ]
 
     def _assemble_output(self, steps: list) -> str:
         """组装最终输出"""

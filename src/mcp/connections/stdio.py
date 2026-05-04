@@ -64,9 +64,7 @@ class StdioMcpConnection(McpConnection):
         # 启动后台读取任务
         self._reader_task = asyncio.create_task(self._read_loop())
         self._connected = True
-        logger.info(
-            f"Stdio MCP 子进程已启动: {self.command} {' '.join(self.args)}"
-        )
+        logger.info(f"Stdio MCP 子进程已启动: {self.command} {' '.join(self.args)}")
 
     async def _read_loop(self) -> None:
         """后台循环读取 stdout，将响应放入队列"""
@@ -108,9 +106,7 @@ class StdioMcpConnection(McpConnection):
             # 唤醒所有 pending 的 future
             for fut in self._pending.values():
                 if not fut.done():
-                    fut.set_exception(
-                        ConnectionError(f"Stdio MCP 读取异常: {e}")
-                    )
+                    fut.set_exception(ConnectionError(f"Stdio MCP 读取异常: {e}"))
             self._pending.clear()
         finally:
             self._connected = False
@@ -184,17 +180,13 @@ class StdioMcpConnection(McpConnection):
                 self.process.terminate()
                 # 等待优雅退出
                 await asyncio.wait_for(
-                    asyncio.get_event_loop().run_in_executor(
-                        None, self.process.wait
-                    ),
+                    asyncio.get_event_loop().run_in_executor(None, self.process.wait),
                     timeout=5.0,
                 )
             except (asyncio.TimeoutError, Exception):
                 try:
                     self.process.kill()
-                    await asyncio.get_event_loop().run_in_executor(
-                        None, self.process.wait
-                    )
+                    await asyncio.get_event_loop().run_in_executor(None, self.process.wait)
                 except Exception:
                     pass
 

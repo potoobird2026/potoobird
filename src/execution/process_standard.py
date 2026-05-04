@@ -17,7 +17,6 @@ ProcessStandard — 流程标准化器
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 logger = logging.getLogger("long_agent.execution.process_standard")
 
@@ -25,6 +24,7 @@ logger = logging.getLogger("long_agent.execution.process_standard")
 @dataclass
 class StepRecord:
     """步骤记录"""
+
     index: int = 0
     description: str = ""
     tool_name: str = ""
@@ -39,6 +39,7 @@ class StepRecord:
 @dataclass
 class ApprovalRecord:
     """审批记录"""
+
     step_index: int = 0
     action: str = ""
     approved: bool = False
@@ -113,8 +114,7 @@ class ProcessStandard:
             for r in records
         ]
 
-    def finalize_task(self, task_type: str, step_log: list,
-                      approval_log: list):
+    def finalize_task(self, task_type: str, step_log: list, approval_log: list):
         """
         任务完成时，更新标准流程
 

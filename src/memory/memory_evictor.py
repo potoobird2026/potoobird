@@ -28,7 +28,6 @@ MemoryEvictor — 记忆淘汰引擎
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Optional
 
 logger = logging.getLogger("long_agent.memory.evictor")
 
@@ -36,11 +35,12 @@ logger = logging.getLogger("long_agent.memory.evictor")
 @dataclass
 class EvictionResult:
     """淘汰结果"""
-    evicted_count: int = 0              # 淘汰的记忆数量
+
+    evicted_count: int = 0  # 淘汰的记忆数量
     evicted_ids: list = field(default_factory=list)  # 被淘汰的记忆 ID
-    protected_count: int = 0            # 被保护的锚点数量
-    remaining_count: int = 0            # 剩余记忆数量
-    eviction_score: float = 0.0         # 触发时的淘汰评分
+    protected_count: int = 0  # 被保护的锚点数量
+    remaining_count: int = 0  # 剩余记忆数量
+    eviction_score: float = 0.0  # 触发时的淘汰评分
 
 
 class MemoryEvictor:
@@ -183,7 +183,7 @@ class MemoryEvictor:
         if capacity_k <= 0:
             return 1.0
         ratio = current_count / capacity_k
-        return ratio ** self.alpha
+        return ratio**self.alpha
 
     def _score_all_memories(
         self,
@@ -231,6 +231,7 @@ class MemoryEvictor:
 
         # 时间衰减
         import time
+
         last_access = memory.get("last_access_at", memory.get("created_at", ""))
         if last_access:
             try:

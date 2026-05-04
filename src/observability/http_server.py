@@ -13,7 +13,6 @@ V2 可观测性 HTTP 端点
 """
 
 import logging
-from typing import Optional
 
 logger = logging.getLogger("long_agent.observability.http")
 
@@ -83,6 +82,7 @@ def create_observability_router(
 
 def _json_dumps(obj: dict) -> str:
     import json
+
     return json.dumps(obj, ensure_ascii=False)
 
 

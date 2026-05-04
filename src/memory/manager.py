@@ -59,9 +59,9 @@ class MemoryManager:
     # 科学依据：控制论（Ziegler & Nichols, 1942）
     # PID 公式：u(t) = Kp·e(t) + Ki·∫e(t)dt + Kd·de(t)/dt
     # 参数通过 Ziegler-Nichols 方法整定，可根据用户反馈动态优化
-    PID_KP = 0.5    # 比例增益
-    PID_KI = 0.1    # 积分增益
-    PID_KD = 0.05   # 微分增益
+    PID_KP = 0.5  # 比例增益
+    PID_KI = 0.1  # 积分增益
+    PID_KD = 0.05  # 微分增益
     PID_DEAD_ZONE = 5.0  # 死区（偏差 < 此值不调整，防止过度敏感）
     PID_MAX_DELTA = 10.0  # 单次最大调整量（防止单次反馈导致剧烈变化）
     PID_INTEGRAL_MAX = 50.0  # 积分项上限（防止积分饱和）
@@ -102,7 +102,8 @@ class MemoryManager:
         self.audit = audit_logger or AuditLogger(str(self.data_dir / "audit.jsonl"))
 
         # V2：动态记忆加载器
-        from src.memory.memory_loader import MemoryLoader, LoadBudget
+        from src.memory.memory_loader import LoadBudget, MemoryLoader
+
         self._loader = MemoryLoader(
             context_window=context_window,
         )
@@ -110,6 +111,7 @@ class MemoryManager:
 
         # V2：记忆淘汰引擎（复用 compressor 的 10 算法评分）
         from src.memory.memory_evictor import MemoryEvictor
+
         self._evictor = MemoryEvictor(
             compressor=compressor,
             alpha=alpha,
@@ -117,8 +119,9 @@ class MemoryManager:
 
         # V2：容量管理器（宽进严出 + LLM动态K）
         from src.context.algorithms.logistic_growth import MemoryCapacityManager
+
         self._capacity_mgr = MemoryCapacityManager(
-            K=capacity_k,
+            k=capacity_k,
             alpha=alpha,
             llm_evaluator=llm_evaluator,
         )
@@ -126,7 +129,7 @@ class MemoryManager:
 
         logger.info(
             f"MemoryManager V2 初始化完成 "
-            f"(context_window={context_window}, K={capacity_k}, alpha={alpha or 1.5})"
+            f"(context_window={context_window}, k={capacity_k}, alpha={alpha or 1.5})"
         )
 
     async def async_initialize(self) -> None:
@@ -141,9 +144,7 @@ class MemoryManager:
             return
         await self._capacity_mgr.async_initialize()
         self._k_async_initialized = True
-        logger.info(
-            f"MemoryManager 异步初始化完成，当前 K={self._capacity_mgr.K}"
-        )
+        logger.info(f"MemoryManager 异步初始化完成，当前 k={self._capacity_mgr.k}")
 
     # ---- 人格管理（防御性编程） ----
 
@@ -421,15 +422,86 @@ class MemoryManager:
         """
         # 停用词（中文 + 英文）
         stopwords = {
-            "的", "了", "是", "在", "我", "有", "和", "就", "不", "人", "都",
-            "一", "一个", "上", "也", "很", "到", "说", "要", "去", "你",
-            "会", "着", "没有", "看", "好", "自己", "这", "他", "她", "它",
-            "们", "那", "些", "什么", "怎么", "为", "因为", "所以", "如果",
-            "the", "a", "an", "is", "are", "was", "were", "be", "been",
-            "have", "has", "had", "do", "does", "did", "will", "would",
-            "could", "should", "may", "might", "can", "shall",
-            "to", "of", "in", "for", "on", "with", "at", "by", "from",
-            "and", "or", "but", "not", "no", "yes", "this", "that",
+            "的",
+            "了",
+            "是",
+            "在",
+            "我",
+            "有",
+            "和",
+            "就",
+            "不",
+            "人",
+            "都",
+            "一",
+            "一个",
+            "上",
+            "也",
+            "很",
+            "到",
+            "说",
+            "要",
+            "去",
+            "你",
+            "会",
+            "着",
+            "没有",
+            "看",
+            "好",
+            "自己",
+            "这",
+            "他",
+            "她",
+            "它",
+            "们",
+            "那",
+            "些",
+            "什么",
+            "怎么",
+            "为",
+            "因为",
+            "所以",
+            "如果",
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "can",
+            "shall",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "and",
+            "or",
+            "but",
+            "not",
+            "no",
+            "yes",
+            "this",
+            "that",
         }
 
         def tokenize(text: str) -> set:
@@ -440,7 +512,7 @@ class MemoryManager:
                     tokens.add(char)
             # 也加入 2-gram
             for i in range(len(text) - 1):
-                bigram = text[i:i + 2]
+                bigram = text[i : i + 2]
                 if bigram not in stopwords:
                     tokens.add(bigram)
             return tokens
@@ -481,11 +553,19 @@ class MemoryManager:
         """
         result = {}
         dim_map = {
-            "H": "honesty", "E": "emotionality", "X": "extraversion",
-            "A": "agreeableness", "C": "conscientiousness", "O": "openness",
+            "H": "honesty",
+            "E": "emotionality",
+            "X": "extraversion",
+            "A": "agreeableness",
+            "C": "conscientiousness",
+            "O": "openness",
         }
         for key, attr in dim_map.items():
-            result[key] = self.personality.get(attr, 50) if isinstance(self.personality, dict) else getattr(self.personality, attr, 50)
+            result[key] = (
+                self.personality.get(attr, 50)
+                if isinstance(self.personality, dict)
+                else getattr(self.personality, attr, 50)
+            )
         return result
 
     async def get_standards(self, category: str = None, limit: int = 10) -> list:
@@ -645,7 +725,6 @@ class MemoryManager:
             if direction == "decrease":
                 target_delta = -target_delta
 
-            current = self.personality[dim]
             error = target_delta  # 误差 = 期望调整量
 
             # 死区检查（偏差太小时不调整）
@@ -658,20 +737,19 @@ class MemoryManager:
             p_term = self.PID_KP * error
 
             # 积分项（累积历史误差，消除稳态误差）
-            if not hasattr(self, '_pid_integral'):
+            if not hasattr(self, "_pid_integral"):
                 self._pid_integral = {}
             if dim not in self._pid_integral:
                 self._pid_integral[dim] = 0.0
             self._pid_integral[dim] += error
             # 积分限幅（防止积分饱和）
             self._pid_integral[dim] = max(
-                -self.PID_INTEGRAL_MAX,
-                min(self.PID_INTEGRAL_MAX, self._pid_integral[dim])
+                -self.PID_INTEGRAL_MAX, min(self.PID_INTEGRAL_MAX, self._pid_integral[dim])
             )
             i_term = self.PID_KI * self._pid_integral[dim]
 
             # 微分项（抑制震荡）
-            if not hasattr(self, '_pid_prev_error'):
+            if not hasattr(self, "_pid_prev_error"):
                 self._pid_prev_error = {}
             prev_error = self._pid_prev_error.get(dim, 0.0)
             d_term = self.PID_KD * (error - prev_error)
@@ -704,8 +782,12 @@ class MemoryManager:
             "|------|------|------|",
         ]
         dim_names = {
-            "H": "诚实-谦逊", "E": "情绪性", "X": "外向性",
-            "A": "宜人性", "C": "尽责性", "O": "经验开放性",
+            "H": "诚实-谦逊",
+            "E": "情绪性",
+            "X": "外向性",
+            "A": "宜人性",
+            "C": "尽责性",
+            "O": "经验开放性",
         }
         for dim in ["H", "E", "X", "A", "C", "O"]:
             score = self.personality.get(dim, 50)
@@ -781,7 +863,7 @@ class MemoryManager:
         # 获取当前记忆数量
         all_memories = await self.storage.get_all()
         current_count = len(all_memories)
-        capacity_k = self._capacity_mgr.K
+        capacity_k = self._capacity_mgr.k
 
         # 更新容量管理器
         self._capacity_mgr.update_count(current_count)
@@ -824,7 +906,7 @@ class MemoryManager:
             }
         """
         return {
-            "capacity_k": self._capacity_mgr.K,
+            "capacity_k": self._capacity_mgr.k,
             "eviction_score": self._capacity_mgr.get_eviction_score(),
             "phase": self._capacity_mgr.get_phase(),
             "alpha": self._capacity_mgr._alpha,
@@ -869,9 +951,9 @@ class MemoryManager:
                 continue  # 已处理
             layer_memories = []  # 应由调用方通过 load_memories_for_context 获取
             if layer_memories:
-                sections.append(f"## {layer}\n" + "\n".join(
-                    f"- {m.get('content', '')}" for m in layer_memories
-                ))
+                sections.append(
+                    f"## {layer}\n" + "\n".join(f"- {m.get('content', '')}" for m in layer_memories)
+                )
 
         return "\n\n".join(sections)
 
@@ -879,8 +961,12 @@ class MemoryManager:
         """构建人格层文本"""
         lines = []
         dim_names = {
-            "H": "诚实-谦逊", "E": "情绪性", "X": "外向性",
-            "A": "宜人性", "C": "尽责性", "O": "经验开放性",
+            "H": "诚实-谦逊",
+            "E": "情绪性",
+            "X": "外向性",
+            "A": "宜人性",
+            "C": "尽责性",
+            "O": "经验开放性",
         }
         for dim in ["H", "E", "X", "A", "C", "O"]:
             score = self.personality.get(dim, 50)

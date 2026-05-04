@@ -10,12 +10,10 @@ MCP SQLite 持久化管理
 
 from __future__ import annotations
 
-import json
 import logging
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from src.mcp.models import McpServerConfig, McpToolInfo
 
@@ -115,9 +113,7 @@ class McpStorage:
     def load_server(self, server_id: str) -> McpServerConfig | None:
         """加载单个服务端配置"""
         conn = self._get_conn()
-        row = conn.execute(
-            "SELECT * FROM mcp_servers WHERE id = ?", (server_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM mcp_servers WHERE id = ?", (server_id,)).fetchone()
         if row is None:
             return None
         return McpServerConfig.from_row(dict(row))
@@ -151,8 +147,6 @@ class McpStorage:
     def save_tools(self, server_id: str, tools: list[McpToolInfo]) -> None:
         """批量保存工具缓存（先清空再插入）"""
         conn = self._get_conn()
-        now = datetime.now(timezone.utc).isoformat()
-
         conn.execute("DELETE FROM mcp_tools_cache WHERE server_id = ?", (server_id,))
         for tool in tools:
             tool.server_id = server_id
@@ -186,9 +180,7 @@ class McpStorage:
     def clear_tools(self, server_id: str) -> None:
         """清除指定服务端的工具缓存"""
         conn = self._get_conn()
-        conn.execute(
-            "DELETE FROM mcp_tools_cache WHERE server_id = ?", (server_id,)
-        )
+        conn.execute("DELETE FROM mcp_tools_cache WHERE server_id = ?", (server_id,))
         conn.commit()
 
     # ── 生命周期 ───────────────────────────────────────────

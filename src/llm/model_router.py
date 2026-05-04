@@ -10,10 +10,7 @@ ModelRouter — 模型路由器
 设计文档：07_LLM管理设计.md §7.2
 """
 
-import asyncio
 import logging
-import time
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Optional
@@ -21,6 +18,7 @@ from typing import Optional
 from src.errors.types import ErrorCode, LLMResult
 
 logger = logging.getLogger("long_agent.llm.model_router")
+
 
 @dataclass
 class ModelConfig:
@@ -58,6 +56,7 @@ class ModelConfig:
 @dataclass
 class RouterStats:
     """路由统计"""
+
     total_requests: int = 0
     total_fallbacks: int = 0
     total_failures: int = 0
@@ -82,11 +81,18 @@ class ModelRouter:
         self._fallback_chain: list[str] = []
         self._stats = RouterStats()
 
-    def register_model(self, name: str, provider: str, model: str,
-                       api_key: str, base_url: str = "",
-                       priority: int = 0, max_retries: int = 3,
-                       timeout: int = 30,
-                       context_window: int = 128000) -> ModelConfig:
+    def register_model(
+        self,
+        name: str,
+        provider: str,
+        model: str,
+        api_key: str,
+        base_url: str = "",
+        priority: int = 0,
+        max_retries: int = 3,
+        timeout: int = 30,
+        context_window: int = 128000,
+    ) -> ModelConfig:
         """
         注册一个模型
 
@@ -108,16 +114,18 @@ class ModelRouter:
             raise ValueError(f"模型 {name} 的 api_key 不能为空（G-001 配置外部化）")
 
         config = ModelConfig(
-            name=name, provider=provider, model=model,
-            api_key=api_key, base_url=base_url,
-            priority=priority, max_retries=max_retries, timeout=timeout,
+            name=name,
+            provider=provider,
+            model=model,
+            api_key=api_key,
+            base_url=base_url,
+            priority=priority,
+            max_retries=max_retries,
+            timeout=timeout,
             context_window=context_window,
         )
         self._models[name] = config
-        self._fallback_chain = sorted(
-            self._models.keys(),
-            key=lambda n: self._models[n].priority
-        )
+        self._fallback_chain = sorted(self._models.keys(), key=lambda n: self._models[n].priority)
         if not self._current_name:
             self._current_name = name
         logger.info(f"注册模型: {name}（{provider}/{model}）")
@@ -166,17 +174,20 @@ class ModelRouter:
         """
         if name not in self._models:
             available = list(self._models.keys())
-            raise ValueError(
-                f"模型 {name} 未注册。可用模型: {available}"
-            )
+            raise ValueError(f"模型 {name} 未注册。可用模型: {available}")
         old_name = self._current_name
         self._current_name = name
         logger.info(f"切换模型: {old_name} → {name}")
         return self._models[name]
 
-    async def call(self, messages: list[dict], model_name: str = None,
-                    temperature: float = 0.7, max_tokens: int = 2048,
-                    **kwargs) -> LLMResult:
+    async def call(
+        self,
+        messages: list[dict],
+        model_name: str = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2048,
+        **kwargs,
+    ) -> LLMResult:
         """
         调用 LLM（带回退链 + 冷却检查）
 
@@ -195,9 +206,7 @@ class ModelRouter:
         target_name = model_name or self._current_name
 
         # 构建回退链（从目标模型开始）
-        fallback_names = [target_name] + [
-            n for n in self._fallback_chain if n != target_name
-        ]
+        fallback_names = [target_name] + [n for n in self._fallback_chain if n != target_name]
 
         last_error = None
         for name in fallback_names:
@@ -237,9 +246,14 @@ class ModelRouter:
             code=ErrorCode.SERVER_ERROR,
         )
 
-    async def _call_single(self, config: ModelConfig, messages: list[dict],
-                           temperature: float, max_tokens: int,
-                           **kwargs) -> LLMResult:
+    async def _call_single(
+        self,
+        config: ModelConfig,
+        messages: list[dict],
+        temperature: float,
+        max_tokens: int,
+        **kwargs,
+    ) -> LLMResult:
         """调用单个模型"""
         from src.llm.provider import LLMRequest
 
@@ -278,14 +292,13 @@ class ModelRouter:
         # 指数退避（基于连续失败次数）
         base_seconds = 30
         cooldown_seconds = min(
-            base_seconds * (2 ** config.failure_count),
-            600  # 最长10分钟
+            base_seconds * (2**config.failure_count),
+            600,  # 最长10分钟
         )
         config.failure_count += 1
         config.cooldown_until = datetime.utcnow() + timedelta(seconds=cooldown_seconds)
         logger.info(
-            f"模型 {config.name} 冷却 {cooldown_seconds}s "
-            f"（连续失败 {config.failure_count} 次）"
+            f"模型 {config.name} 冷却 {cooldown_seconds}s （连续失败 {config.failure_count} 次）"
         )
 
     def clear_cooldown(self, name: str):

@@ -10,15 +10,15 @@
 - DeliverableValidator: 可交付性评估器
 """
 
-from src.understanding.engine import (
-    ClarificationResult,
-    Intent,
-    UnderstandingEngine,
-)
 from src.understanding.deliverable_validator import (
     AcceptanceCriterion,
     DeliverablePlan,
     DeliverableValidator,
+)
+from src.understanding.engine import (
+    ClarificationResult,
+    Intent,
+    UnderstandingEngine,
 )
 
 __all__ = [

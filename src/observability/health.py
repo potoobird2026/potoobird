@@ -14,7 +14,6 @@ V2：新增 FastAPI Router，暴露 /health 和 /ready 端点
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 logger = logging.getLogger("long_agent.health")
 
@@ -22,6 +21,7 @@ logger = logging.getLogger("long_agent.health")
 # ─────────────────────────────────────────────
 # V1 兼容层
 # ─────────────────────────────────────────────
+
 
 @dataclass
 class HealthStatus:
@@ -75,6 +75,7 @@ class HealthChecker:
         if self._storage:
             try:
                 import asyncio
+
                 count = asyncio.get_event_loop().run_until_complete(self._storage.count())
                 status.memory_count = count
                 status.components["storage"] = "ok"
@@ -152,6 +153,7 @@ class ComponentCheck:
 # ─────────────────────────────────────────────
 # V2：结构化健康响应（用于 HTTP 端点）
 # ─────────────────────────────────────────────
+
 
 def health_response(status: HealthStatus, include_details: bool = True) -> dict:
     """生成标准健康检查响应"""

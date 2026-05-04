@@ -36,7 +36,7 @@ class IdentityManager:
         """
         self._storage_path = storage_path or "./data/identities.json"
         self._identity_map: dict[str, str] = {}  # f"{channel}:{user_id}" -> universal_id
-        self._reverse_map: dict[str, set] = {}   # universal_id -> {f"{channel}:{user_id}"}
+        self._reverse_map: dict[str, set] = {}  # universal_id -> {f"{channel}:{user_id}"}
         self._load()
 
     def _load(self):
@@ -113,8 +113,7 @@ class IdentityManager:
                 return uid
         return None
 
-    async def bind(self, channel_a: str, user_id_a: str,
-                   channel_b: str, user_id_b: str) -> str:
+    async def bind(self, channel_a: str, user_id_a: str, channel_b: str, user_id_b: str) -> str:
         """
         主动关联：将两个渠道的身份绑定到同一 universal_id
 
@@ -137,10 +136,7 @@ class IdentityManager:
         uid_b = self._identity_map.get(key_b)
 
         if uid_a and uid_b and uid_a != uid_b:
-            raise ValueError(
-                f"身份冲突：{key_a} → {uid_a}, {key_b} → {uid_b}。"
-                f"请先解绑其中一个。"
-            )
+            raise ValueError(f"身份冲突：{key_a} → {uid_a}, {key_b} → {uid_b}。请先解绑其中一个。")
 
         universal_id = uid_a or uid_b or str(uuid.uuid4())[:12]
 

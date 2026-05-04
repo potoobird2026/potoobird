@@ -1,6 +1,5 @@
 """Web UI 入口 — FastAPI"""
 
-import json
 import logging
 from pathlib import Path
 
@@ -10,10 +9,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from src.config.settings import Settings, init_logging
+from src.loop.agent_loop import AgentLoop
 from src.memory.manager import MemoryManager
 from src.memory.storage.sqlite_storage import SQLiteStorage
 from src.understanding.engine import UnderstandingEngine
-from src.loop.agent_loop import AgentLoop
 
 logger = logging.getLogger("long_agent.web")
 
@@ -37,6 +36,7 @@ def get_agent():
         llm_provider = None
         if settings.openai_api_key:
             from src.llm.provider import OpenAIProvider
+
             llm_provider = OpenAIProvider(
                 api_key=settings.openai_api_key,
                 model=settings.openai_model,
@@ -55,11 +55,14 @@ async def index(request: Request):
     agent = get_agent()
     memory_count = await agent["memory"].storage.count()
     p = agent["memory"].personality
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "memory_count": memory_count,
-        "personality": p,
-    })
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "memory_count": memory_count,
+            "personality": p,
+        },
+    )
 
 
 @app.post("/api/chat")
@@ -85,7 +88,10 @@ async def get_memories(layer: str = None, limit: int = 50):
 async def add_memory(request: Request):
     data = await request.json()
     agent = get_agent()
-    result = await agent["memory"].remember(content=data.get("content", ""), layer=data.get("layer", "core"))
+    result = await agent["memory"].remember(
+        content=data.get("content", ""),
+        layer=data.get("layer", "core"),
+    )
     return {"id": result.id, "created": result.created}
 
 
@@ -100,8 +106,14 @@ async def delete_memory(memory_id: str):
 async def get_personality():
     agent = get_agent()
     p = agent["memory"].personality
-    return {"H": p.get("H", 50), "E": p.get("E", 50), "X": p.get("X", 50),
-            "A": p.get("A", 50), "C": p.get("C", 50), "O": p.get("O", 50)}
+    return {
+        "H": p.get("H", 50),
+        "E": p.get("E", 50),
+        "X": p.get("X", 50),
+        "A": p.get("A", 50),
+        "C": p.get("C", 50),
+        "O": p.get("O", 50),
+    }
 
 
 @app.put("/api/personality")
@@ -123,6 +135,7 @@ async def list_skills():
     """列出所有 Skill"""
     try:
         from src.skill.manager import SkillManager
+
         sm = SkillManager()
         sm.load_all()
         return {"skills": sm.list_skills()}
@@ -163,6 +176,7 @@ async def mcp_connect(request: Request):
         mcp_client.register_server(name, url)
         # 尝试连接
         import asyncio
+
         loop = asyncio.new_event_loop()
         failed = loop.run_until_complete(mcp_client.connect_all())
         loop.close()

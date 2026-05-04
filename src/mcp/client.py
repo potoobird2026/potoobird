@@ -21,16 +21,18 @@ logger = logging.getLogger("long_agent.mcp")
 
 # ========== 数据模型 ==========
 
+
 @dataclass
 class McpServerConfig:
     """MCP 服务器配置"""
+
     id: str = ""
     name: str = ""
     transport: str = "stdio"  # stdio / http / sse
-    command: str = ""          # stdio 模式
+    command: str = ""  # stdio 模式
     args: list = field(default_factory=list)
     env: dict = field(default_factory=dict)
-    url: str = ""              # HTTP 模式
+    url: str = ""  # HTTP 模式
     headers: dict = field(default_factory=dict)
     enabled: bool = True
     auto_connect: bool = False
@@ -40,6 +42,7 @@ class McpServerConfig:
 @dataclass
 class McpToolInfo:
     """MCP 工具信息"""
+
     name: str
     description: str = ""
     input_schema: dict = field(default_factory=dict)
@@ -49,6 +52,7 @@ class McpToolInfo:
 @dataclass
 class McpServerInfo:
     """MCP 服务器信息"""
+
     name: str = ""
     version: str = ""
     protocol_version: str = ""
@@ -56,6 +60,7 @@ class McpServerInfo:
 
 
 # ========== 传输层 ==========
+
 
 class StdioMcpConnection:
     """stdio 模式 MCP 连接（subprocess + stdin/stdout JSON-RPC）"""
@@ -68,8 +73,10 @@ class StdioMcpConnection:
 
     async def connect(self):
         self._process = await asyncio.create_subprocess_exec(
-            self.config.command, *self.config.args,
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            self.config.command,
+            *self.config.args,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env={**dict(subprocess.os.environ), **self.config.env} if self.config.env else None,
         )
@@ -79,16 +86,15 @@ class StdioMcpConnection:
         protocol = asyncio.StreamReaderProtocol(self._reader)
         await loop.connect_read_pipe(lambda: protocol, self._process.stdout)
         self._writer = asyncio.StreamWriter(
-            self._process.stdin, protocol=None,
-            reader=None, loop=loop)
+            self._process.stdin, protocol=None, reader=None, loop=loop
+        )
 
     async def send(self, message: dict) -> dict:
         """发送 JSON-RPC 请求，返回响应"""
         data = json.dumps(message, ensure_ascii=False) + "\n"
         self._writer.write(data.encode())
         await self._writer.drain()
-        line = await asyncio.wait_for(
-            self._reader.readline(), timeout=self.config.timeout)
+        line = await asyncio.wait_for(self._reader.readline(), timeout=self.config.timeout)
         return json.loads(line.decode())
 
     async def close(self):
@@ -124,6 +130,7 @@ class HttpMcpConnection:
 
 
 # ========== 管理器 ==========
+
 
 class McpClientManager:
     """
@@ -165,16 +172,29 @@ class McpClientManager:
 
     def _save_server(self, config: McpServerConfig):
         with sqlite3.connect(self._db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO mcp_servers
                 (id, name, transport, command, args, env, url, headers,
                  enabled, auto_connect, timeout, installed_at, updated_at)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, (config.id, config.name, config.transport,
-                  config.command, json.dumps(config.args), json.dumps(config.env),
-                  config.url, json.dumps(config.headers),
-                  int(config.enabled), int(config.auto_connect), config.timeout,
-                  datetime.utcnow().isoformat(), datetime.utcnow().isoformat()))
+            """,
+                (
+                    config.id,
+                    config.name,
+                    config.transport,
+                    config.command,
+                    json.dumps(config.args),
+                    json.dumps(config.env),
+                    config.url,
+                    json.dumps(config.headers),
+                    int(config.enabled),
+                    int(config.auto_connect),
+                    config.timeout,
+                    datetime.utcnow().isoformat(),
+                    datetime.utcnow().isoformat(),
+                ),
+            )
 
     def _delete_server(self, server_id: str):
         with sqlite3.connect(self._db_path) as conn:
@@ -185,14 +205,21 @@ class McpClientManager:
         servers = []
         with sqlite3.connect(self._db_path) as conn:
             for row in conn.execute("SELECT * FROM mcp_servers"):
-                servers.append(McpServerConfig(
-                    id=row[0], name=row[1], transport=row[2],
-                    command=row[3], args=json.loads(row[4] or "[]"),
-                    env=json.loads(row[5] or "{}"),
-                    url=row[6] or "", headers=json.loads(row[7] or "{}"),
-                    enabled=bool(row[8]), auto_connect=bool(row[9]),
-                    timeout=row[10] or 30,
-                ))
+                servers.append(
+                    McpServerConfig(
+                        id=row[0],
+                        name=row[1],
+                        transport=row[2],
+                        command=row[3],
+                        args=json.loads(row[4] or "[]"),
+                        env=json.loads(row[5] or "{}"),
+                        url=row[6] or "",
+                        headers=json.loads(row[7] or "{}"),
+                        enabled=bool(row[8]),
+                        auto_connect=bool(row[9]),
+                        timeout=row[10] or 30,
+                    )
+                )
         return servers
 
     def set_tool_registry(self, registry):
@@ -242,16 +269,18 @@ class McpClientManager:
         self._connections[server_id] = conn
 
         # initialize 握手
-        init_resp = await conn.send({
-            "jsonrpc": "2.0",
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {"name": "long-agent", "version": "0.1.0"},
-            },
-            "id": 1,
-        })
+        init_resp = await conn.send(
+            {
+                "jsonrpc": "2.0",
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {},
+                    "clientInfo": {"name": "long-agent", "version": "0.1.0"},
+                },
+                "id": 1,
+            }
+        )
         server_info = McpServerInfo(
             name=init_resp.get("result", {}).get("serverInfo", {}).get("name", ""),
             version=init_resp.get("result", {}).get("serverInfo", {}).get("version", ""),
@@ -260,15 +289,22 @@ class McpClientManager:
         )
 
         # tools/list 发现工具
-        tools_resp = await conn.send({
-            "jsonrpc": "2.0", "method": "tools/list", "params": {}, "id": 2,
-        })
+        tools_resp = await conn.send(
+            {
+                "jsonrpc": "2.0",
+                "method": "tools/list",
+                "params": {},
+                "id": 2,
+            }
+        )
         tools_data = tools_resp.get("result", {}).get("tools", [])
         tools = []
         for t in tools_data:
             tool = McpToolInfo(
-                name=t["name"], description=t.get("description", ""),
-                input_schema=t.get("inputSchema", {}), server_id=server_id,
+                name=t["name"],
+                description=t.get("description", ""),
+                input_schema=t.get("inputSchema", {}),
+                server_id=server_id,
             )
             tools.append(tool)
             # 注册到 ToolRegistry
@@ -283,6 +319,7 @@ class McpClientManager:
     def _register_tool(self, server_id: str, tool: McpToolInfo):
         """注册工具到 ToolRegistry"""
         from src.execution.tool_registry import ToolLevel
+
         tool_name = f"mcp_{server_id}_{tool.name}"
         self._tool_registry.register(
             name=tool_name,
@@ -293,12 +330,19 @@ class McpClientManager:
 
     def _cache_tool(self, server_id: str, tool: McpToolInfo):
         with sqlite3.connect(self._db_path) as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO mcp_tools_cache
                 (server_id, tool_name, description, input_schema, registered)
                 VALUES (?,?,?,?,1)
-            """, (server_id, tool.name, tool.description,
-                  json.dumps(tool.input_schema, ensure_ascii=False)))
+            """,
+                (
+                    server_id,
+                    tool.name,
+                    tool.description,
+                    json.dumps(tool.input_schema, ensure_ascii=False),
+                ),
+            )
 
     async def disconnect(self, server_id: str):
         """断开连接 + 注销工具"""
@@ -307,21 +351,21 @@ class McpClientManager:
             await conn.close()
         # 标记工具缓存为未注册
         with sqlite3.connect(self._db_path) as conn:
-            conn.execute(
-                "UPDATE mcp_tools_cache SET registered=0 WHERE server_id=?",
-                (server_id,))
+            conn.execute("UPDATE mcp_tools_cache SET registered=0 WHERE server_id=?", (server_id,))
 
-    async def call_tool(self, server_id: str, tool_name: str,
-                        arguments: dict = None) -> str:
+    async def call_tool(self, server_id: str, tool_name: str, arguments: dict = None) -> str:
         """调用 MCP 工具"""
         conn = self._connections.get(server_id)
         if not conn:
             raise ValueError(f"服务器未连接: {server_id}")
-        resp = await conn.send({
-            "jsonrpc": "2.0", "method": "tools/call",
-            "params": {"name": tool_name, "arguments": arguments or {}},
-            "id": 1,
-        })
+        resp = await conn.send(
+            {
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": {"name": tool_name, "arguments": arguments or {}},
+                "id": 1,
+            }
+        )
         if "error" in resp:
             raise RuntimeError(f"MCP 错误: {resp['error'].get('message', '未知')}")
         content = resp.get("result", {}).get("content", [])
@@ -331,8 +375,13 @@ class McpClientManager:
 
     def list_servers(self) -> list[dict]:
         return [
-            {"id": s.id, "name": s.name, "transport": s.transport,
-             "enabled": s.enabled, "connected": s.id in self._connections}
+            {
+                "id": s.id,
+                "name": s.name,
+                "transport": s.transport,
+                "enabled": s.enabled,
+                "connected": s.id in self._connections,
+            }
             for s in self._load_servers()
         ]
 
@@ -344,10 +393,14 @@ class McpClientManager:
                 + (" WHERE server_id=?" if server_id else ""),
                 (server_id,) if server_id else (),
             ):
-                tools.append(McpToolInfo(
-                    name=row[1], description=row[2] or "",
-                    input_schema=json.loads(row[3] or "{}"), server_id=row[0],
-                ))
+                tools.append(
+                    McpToolInfo(
+                        name=row[1],
+                        description=row[2] or "",
+                        input_schema=json.loads(row[3] or "{}"),
+                        server_id=row[0],
+                    )
+                )
         return tools
 
     def get_server_status(self, server_id: str) -> dict:

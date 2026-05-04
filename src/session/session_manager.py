@@ -16,9 +16,7 @@ SessionManager — 会话生命周期管理
 设计文档：DESIGN-V2.md §8.2
 """
 
-import dataclasses
 import logging
-import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -30,6 +28,7 @@ logger = logging.getLogger("long_agent.session.manager")
 
 class SessionStatus(str, Enum):
     """会话状态"""
+
     ACTIVE = "active"
     PAUSED = "paused"
     ARCHIVED = "archived"
@@ -53,6 +52,7 @@ class Session:
     - created_at: 创建时间
     - updated_at: 最后活跃时间
     """
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:12])
     universal_id: str = ""
     channel: str = ""
@@ -71,6 +71,7 @@ class Session:
             kwargs.pop("status", None)
         # 手动初始化所有 dataclass 字段
         import dataclasses as _dc
+
         fields = self.__dataclass_fields__
         for f_name, f_obj in fields.items():
             if f_name in kwargs:
@@ -86,7 +87,7 @@ class Session:
             except ValueError:
                 pass
         if message_count is not None:
-            object.__setattr__(self, 'messages', [None] * message_count)
+            object.__setattr__(self, "messages", [None] * message_count)
 
     # 兼容旧接口属性
     @property
@@ -157,8 +158,14 @@ class SessionManager:
     - EventBus: 事件驱动
     """
 
-    def __init__(self, memory_manager=None, compressor=None, event_bus=None,
-                 idle_timeout: float = None, **kwargs):
+    def __init__(
+        self,
+        memory_manager=None,
+        compressor=None,
+        event_bus=None,
+        idle_timeout: float = None,
+        **kwargs,
+    ):
         """
         Args:
             memory_manager: 管理器
@@ -168,6 +175,7 @@ class SessionManager:
             **kwargs: 兼容旧接口的额外参数
         """
         from src.session.identity_manager import IdentityManager
+
         self.memory = memory_manager
         self.compressor = compressor
         self.event_bus = event_bus
@@ -179,8 +187,7 @@ class SessionManager:
         self._idle_timeout = idle_timeout or 7200
         logger.info("SessionManager V2 初始化完成")
 
-    async def on_message(self, channel: str, channel_user_id: str,
-                          content: str) -> str:
+    async def on_message(self, channel: str, channel_user_id: str, content: str) -> str:
         """
         处理来自任意渠道的消息（统一入口）
 
@@ -213,9 +220,7 @@ class SessionManager:
         # 4. 压缩检测
         if self.compressor and len(session.messages) > 6:
             try:
-                result = await self.compressor.compress(
-                    session.messages, session.context_summary
-                )
+                result = await self.compressor.compress(session.messages, session.context_summary)
                 session.context_summary = result.summary
                 logger.debug(f"上下文压缩: session={session.id}")
             except Exception as e:
@@ -230,8 +235,7 @@ class SessionManager:
         # 发布事件
         if self.event_bus:
             await self.event_bus.publish(
-                "session.message_handled",
-                {"session_id": session.id, "channel": channel}
+                "session.message_handled", {"session_id": session.id, "channel": channel}
             )
 
         return response
@@ -268,9 +272,11 @@ class SessionManager:
         """
         # 查找该 universal_id 在该渠道的活跃会话
         for session in self._sessions.values():
-            if (session.universal_id == universal_id
-                    and session.channel == channel
-                    and session.status == SessionStatus.ACTIVE):
+            if (
+                session.universal_id == universal_id
+                and session.channel == channel
+                and session.status == SessionStatus.ACTIVE
+            ):
                 return session
 
         # 创建新会话
@@ -282,9 +288,13 @@ class SessionManager:
         logger.info(f"会话创建: {session.id} ({universal_id}@{channel})")
         return session
 
-    async def create_session(self, user_id: str = None, channel: str = "default",
-                             conversation_id: str = None,
-                             context: dict = None) -> Session:
+    async def create_session(
+        self,
+        user_id: str = None,
+        channel: str = "default",
+        conversation_id: str = None,
+        context: dict = None,
+    ) -> Session:
         """
         创建会话（兼容旧接口）
 
@@ -426,15 +436,9 @@ class SessionManager:
         Returns:
             list[Session]: 会话列表
         """
-        return [
-            s for s in self._sessions.values()
-            if s.universal_id == universal_id
-        ]
+        return [s for s in self._sessions.values() if s.universal_id == universal_id]
 
     @property
     def active_count(self) -> int:
         """活跃会话数"""
-        return sum(
-            1 for s in self._sessions.values()
-            if s.status == SessionStatus.ACTIVE
-        )
+        return sum(1 for s in self._sessions.values() if s.status == SessionStatus.ACTIVE)

@@ -12,7 +12,7 @@ class TestMemoryCapacityManager:
 
     def test_write_probability_always_one(self):
         """写入概率始终为 1.0（宽进）"""
-        mgr = MemoryCapacityManager(K=10000, alpha=1.5)
+        mgr = MemoryCapacityManager(k=10000, alpha=1.5)
         assert mgr.get_write_probability(0) == 1.0
         assert mgr.get_write_probability(5000) == 1.0
         assert mgr.get_write_probability(9999) == 1.0
@@ -20,7 +20,7 @@ class TestMemoryCapacityManager:
 
     def test_eviction_score_increases_with_density(self):
         """淘汰评分随密度增加"""
-        mgr = MemoryCapacityManager(K=10000, alpha=1.5)
+        mgr = MemoryCapacityManager(k=10000, alpha=1.5)
         score_low = mgr.get_eviction_score(1000)   # 10% 密度
         score_mid = mgr.get_eviction_score(5000)   # 50% 密度
         score_high = mgr.get_eviction_score(9000)  # 90% 密度
@@ -28,31 +28,31 @@ class TestMemoryCapacityManager:
 
     def test_eviction_score_formula(self):
         """淘汰公式：(N/K)^α"""
-        mgr = MemoryCapacityManager(K=10000, alpha=2.0)
+        mgr = MemoryCapacityManager(k=10000, alpha=2.0)
         # N=5000, K=10000, α=2 → (0.5)^2 = 0.25
         assert abs(mgr.get_eviction_score(5000) - 0.25) < 0.01
 
     def test_should_evict_below_threshold(self):
         """低于阈值不淘汰"""
-        mgr = MemoryCapacityManager(K=10000, alpha=1.5)
+        mgr = MemoryCapacityManager(k=10000, alpha=1.5)
         # N=5000 → (0.5)^1.5 ≈ 0.354 < 0.85
         assert mgr.should_evict(5000) is False
 
     def test_should_evict_above_threshold(self):
         """高于阈值淘汰"""
-        mgr = MemoryCapacityManager(K=10000, alpha=1.5)
+        mgr = MemoryCapacityManager(k=10000, alpha=1.5)
         # N=9500 → (0.95)^1.5 ≈ 0.927 > 0.85
         assert mgr.should_evict(9500) is True
 
     def test_phase_normal(self):
         """正常阶段"""
-        mgr = MemoryCapacityManager(K=10000, alpha=1.5)
+        mgr = MemoryCapacityManager(k=10000, alpha=1.5)
         mgr.update_count(5000)
         assert mgr.get_phase() == "normal"
 
     def test_phase_eviction(self):
         """淘汰阶段"""
-        mgr = MemoryCapacityManager(K=10000, alpha=1.5)
+        mgr = MemoryCapacityManager(k=10000, alpha=1.5)
         mgr.update_count(9500)
         assert mgr.get_phase() == "eviction"
 

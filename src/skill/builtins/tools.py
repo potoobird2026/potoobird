@@ -1,13 +1,13 @@
 """Builtins Skill — 内置基础工具"""
 
-from dataclasses import dataclass
-
 
 def tool_def(name: str, description: str):
     """工具定义装饰器"""
+
     def decorator(func):
         func.__tool_def__ = {"name": name, "description": description}
         return func
+
     return decorator
 
 
@@ -34,7 +34,9 @@ async def get_personality(memory_manager=None):
 @tool_def("system_info", "获取系统信息")
 async def system_info():
     """获取基本系统信息"""
-    import platform, os
+    import os
+    import platform
+
     return (
         f"系统: {platform.system()} {platform.version()}\n"
         f"Python: {platform.python_version()}\n"

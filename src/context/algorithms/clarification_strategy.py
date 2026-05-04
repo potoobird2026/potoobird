@@ -20,23 +20,24 @@ V2 设计原则：
 """
 
 import logging
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 logger = logging.getLogger("long_agent.algorithms.clarification_strategy")
 
 
 class ClarificationType:
     """追问策略类型"""
-    NONE = "none"           # 不追问
-    CONFIRM = "confirm"     # 确认追问
-    OPEN = "open"           # 开放追问
-    HYBRID = "hybrid"       # 混合追问
+
+    NONE = "none"  # 不追问
+    CONFIRM = "confirm"  # 确认追问
+    OPEN = "open"  # 开放追问
+    HYBRID = "hybrid"  # 混合追问
 
 
 @dataclass
 class StrategyDecision:
     """策略决策结果"""
+
     strategy: str = ClarificationType.NONE
     question: str = ""
     reason: str = ""
@@ -73,9 +74,15 @@ class ClarificationStrategy:
         medium_threshold: float = None,
         low_threshold: float = None,
     ):
-        self.high_threshold = high_threshold if high_threshold is not None else self.DEFAULT_HIGH_THRESHOLD
-        self.medium_threshold = medium_threshold if medium_threshold is not None else self.DEFAULT_MEDIUM_THRESHOLD
-        self.low_threshold = low_threshold if low_threshold is not None else self.DEFAULT_LOW_THRESHOLD
+        self.high_threshold = (
+            high_threshold if high_threshold is not None else self.DEFAULT_HIGH_THRESHOLD
+        )
+        self.medium_threshold = (
+            medium_threshold if medium_threshold is not None else self.DEFAULT_MEDIUM_THRESHOLD
+        )
+        self.low_threshold = (
+            low_threshold if low_threshold is not None else self.DEFAULT_LOW_THRESHOLD
+        )
 
     def select_strategy(
         self,
@@ -121,7 +128,10 @@ class ClarificationStrategy:
                 return StrategyDecision(
                     strategy=ClarificationType.CONFIRM,
                     question=question,
-                    reason=f"置信度 {confidence:.2f} ∈ [{medium:.2f}, {high:.2f})，有候选意图，使用确认追问",
+                    reason=(
+                        f"置信度 {confidence:.2f} ∈ [{medium:.2f}, {high:.2f})"
+                        "，有候选意图，使用确认追问"
+                    ),
                     expected_gain=0.3,
                     confidence_after=min(1.0, confidence + 0.3),
                 )
@@ -130,7 +140,10 @@ class ClarificationStrategy:
                 return StrategyDecision(
                     strategy=ClarificationType.HYBRID,
                     question="你想做什么？是" + "、".join(candidate_intents[:3]) + "还是其他？",
-                    reason=f"置信度 {confidence:.2f} ∈ [{medium:.2f}, {high:.2f})，无候选意图，使用混合追问",
+                    reason=(
+                        f"置信度 {confidence:.2f} ∈ [{medium:.2f}, {high:.2f})"
+                        "，无候选意图，使用混合追问"
+                    ),
                     expected_gain=0.4,
                     confidence_after=min(1.0, confidence + 0.4),
                 )

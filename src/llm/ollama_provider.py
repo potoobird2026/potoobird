@@ -8,6 +8,7 @@ logger = logging.getLogger("long_agent.llm.ollama")
 
 try:
     import httpx
+
     HAS_HTTPX = True
 except ImportError:
     HAS_HTTPX = False
@@ -16,7 +17,12 @@ except ImportError:
 class OllamaProvider:
     """Ollama 本地模型 Provider"""
 
-    def __init__(self, base_url: str = "http://localhost:11434", model: str = "llama3", timeout: int = 60):
+    def __init__(
+        self,
+        base_url: str = "http://localhost:11434",
+        model: str = "llama3",
+        timeout: int = 60,
+    ):
         if not HAS_HTTPX:
             raise ImportError("httpx 包未安装。请运行：pip install httpx")
         self._base_url = base_url
@@ -39,10 +45,12 @@ class OllamaProvider:
         try:
             messages = []
             for msg in request.messages:
-                messages.append({
-                    "role": msg.get("role", "user"),
-                    "content": msg.get("content", ""),
-                })
+                messages.append(
+                    {
+                        "role": msg.get("role", "user"),
+                        "content": msg.get("content", ""),
+                    }
+                )
 
             async with httpx.AsyncClient() as client:
                 resp = await client.post(
@@ -52,7 +60,7 @@ class OllamaProvider:
                         "messages": messages,
                         "stream": False,
                         "options": {
-                            "temperature": getattr(request, 'temperature', 0.7),
+                            "temperature": getattr(request, "temperature", 0.7),
                         },
                     },
                     timeout=self._timeout,

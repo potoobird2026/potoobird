@@ -8,16 +8,15 @@ MCP 凭据加密工具
 
 from __future__ import annotations
 
-import base64
 import logging
 import os
 import re
-from typing import Any
 
 logger = logging.getLogger("long_agent.mcp.crypto")
 
 try:
-    from cryptography.fernet import Fernet, InvalidToken
+    from cryptography.fernet import Fernet
+
     _HAS_FERNET = True
 except ImportError:
     _HAS_FERNET = False
@@ -108,7 +107,7 @@ class McpCrypto:
         for k, v in headers.items():
             if v.startswith(self._MARKER):
                 try:
-                    encrypted = v[len(self._MARKER):]
+                    encrypted = v[len(self._MARKER) :]
                     decrypted = self._fernet.decrypt(encrypted.encode()).decode()
                     result[k] = decrypted
                 except Exception:
@@ -129,9 +128,7 @@ class McpCrypto:
             return value
         if value.startswith(self._MARKER):
             try:
-                return self._fernet.decrypt(
-                    value[len(self._MARKER):].encode()
-                ).decode()
+                return self._fernet.decrypt(value[len(self._MARKER) :].encode()).decode()
             except Exception:
                 return value
         return value

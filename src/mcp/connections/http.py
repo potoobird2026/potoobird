@@ -7,7 +7,6 @@ HTTP MCP 连接 — 通过 HTTP POST 与 MCP 服务端通信
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
@@ -63,9 +62,7 @@ class HttpMcpConnection(McpConnection):
         """
         读取响应（HTTP 模式下不单独使用）。
         """
-        raise NotImplementedError(
-            "HTTP MCP 不支持独立 receive()，请使用 send_and_receive()"
-        )
+        raise NotImplementedError("HTTP MCP 不支持独立 receive()，请使用 send_and_receive()")
 
     async def send_and_receive(self, message: dict[str, Any]) -> dict[str, Any]:
         """POST JSON-RPC 请求，返回响应"""

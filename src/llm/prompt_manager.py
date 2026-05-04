@@ -15,6 +15,7 @@ PromptManager — 提示词管理器
 """
 
 import logging
+import random
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -24,6 +25,7 @@ logger = logging.getLogger("long_agent.llm.prompt_manager")
 @dataclass
 class PromptTemplate:
     """提示词模板"""
+
     name: str
     template: str
     version: str = "1.0"
@@ -50,11 +52,7 @@ class PromptManager:
         """注册默认提示词模板"""
         self._templates["system_base"] = PromptTemplate(
             name="system_base",
-            template=(
-                "你是一个AI助手。\n"
-                "当前时间: {current_time}\n"
-                "用户ID: {user_id}\n"
-            ),
+            template=("你是一个AI助手。\n当前时间: {current_time}\n用户ID: {user_id}\n"),
             version="1.0",
             description="基础系统提示词",
         )
@@ -88,11 +86,7 @@ class PromptManager:
 
         self._templates["with_standards"] = PromptTemplate(
             name="with_standards",
-            template=(
-                "你需要遵守以下开发标准：\n"
-                "{standards}\n"
-                "在回复中始终遵循这些标准。\n"
-            ),
+            template=("你需要遵守以下开发标准：\n{standards}\n在回复中始终遵循这些标准。\n"),
             version="1.0",
             description="含标准的提示词",
         )
@@ -126,28 +120,33 @@ class PromptManager:
             str: 组装好的system prompt
         """
         from datetime import datetime
+
         parts = []
 
         # 1. 基础部分
         base = self._templates.get("system_base")
         if base:
-            parts.append(base.template.format(
-                current_time=datetime.utcnow().isoformat() + "Z",
-                user_id=user_id,
-            ))
+            parts.append(
+                base.template.format(
+                    current_time=datetime.utcnow().isoformat() + "Z",
+                    user_id=user_id,
+                )
+            )
 
         # 2. 人格部分
         if personality:
             p = self._templates.get("with_personality")
             if p:
-                parts.append(p.template.format(
-                    H=personality.get("H", 50),
-                    E=personality.get("E", 50),
-                    X=personality.get("X", 50),
-                    A=personality.get("A", 50),
-                    C=personality.get("C", 50),
-                    O=personality.get("O", 50),
-                ))
+                parts.append(
+                    p.template.format(
+                        H=personality.get("H", 50),
+                        E=personality.get("E", 50),
+                        X=personality.get("X", 50),
+                        A=personality.get("A", 50),
+                        C=personality.get("C", 50),
+                        O=personality.get("O", 50),
+                    )
+                )
 
         # 3. 记忆部分
         if memories:
@@ -172,12 +171,11 @@ class PromptManager:
 
 # ========== V2 补全：render_prompt + record_feedback + Thompson Sampling ==========
 
-import random
-
 
 @dataclass
 class PromptVariant:
     """提示词变体（A/B 测试用）"""
+
     name: str = ""
     template: str = ""
     variant: str = "default"  # "default" / "variant_a" / "variant_b" / ...
@@ -204,8 +202,7 @@ class PromptManagerV2:
         self._ts_weights: dict[str, dict[str, tuple[float, float]]] = {}
         logger.info("PromptManagerV2 初始化完成")
 
-    def register_template(self, task_type: str, template: str,
-                          variant: str = "default"):
+    def register_template(self, task_type: str, template: str, variant: str = "default"):
         """
         注册提示词模板变体
 
@@ -272,10 +269,7 @@ class PromptManagerV2:
             logger.warning(f"模板变量缺失: {e}")
             rendered = selected.template
 
-        logger.debug(
-            f"Prompt 渲染: task_type={task_type}, "
-            f"variant={selected.variant}"
-        )
+        logger.debug(f"Prompt 渲染: task_type={task_type}, variant={selected.variant}")
         return rendered
 
     def record_feedback(self, task_type: str, variant: str, quality: float):
@@ -295,7 +289,7 @@ class PromptManagerV2:
         # Beta 分布更新：quality=1 → alpha+1, quality=0 → beta+1
         # 支持 [0, 1] 连续值
         alpha += quality
-        beta += (1.0 - quality)
+        beta += 1.0 - quality
 
         self._ts_weights[task_type][variant] = (alpha, beta)
 

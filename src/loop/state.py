@@ -26,13 +26,13 @@ V2 升级（合并自 hermse v1.3）：
 参考：06_状态机设计.md
 """
 
-import logging
 import heapq
+import logging
 import threading
 import time
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from src.errors.classifier import AdaptiveRetryPolicy
@@ -175,6 +175,7 @@ class StateMachine:
         self._state = new_state
 
         from datetime import datetime
+
         ts = datetime.utcnow().isoformat() + "Z"
         self._history.append((old_state.value, new_state.value, ts))
 
@@ -191,6 +192,7 @@ class StateMachine:
         - EXECUTING: 保存快照标记
         """
         import time as _time
+
         now = _time.time()
         state_key = state.value
 
@@ -200,7 +202,7 @@ class StateMachine:
             del self._state_entry_time[state_key]
 
         if state == AgentState.FAILED:
-            logger.warning(f"退出 FAILED 状态，准备恢复或重置")
+            logger.warning("退出 FAILED 状态，准备恢复或重置")
 
     def _on_enter_state(self, state: AgentState):
         """
@@ -212,6 +214,7 @@ class StateMachine:
         - FAILED: 触发恢复策略
         """
         import time as _time
+
         self._state_entry_time[state.value] = _time.time()
 
         if state == AgentState.IDLE:
@@ -229,7 +232,7 @@ class StateMachine:
             logger.info(f"进入 CLARIFYING：超时 {timeout}s")
 
         elif state == AgentState.FAILED:
-            logger.warning(f"进入 FAILED 状态，等待恢复策略决策")
+            logger.warning("进入 FAILED 状态，等待恢复策略决策")
 
     def reset(self):
         """重置到 IDLE"""
@@ -256,9 +259,11 @@ class StateMachine:
 
 # ========== V2 升级：自适应超时 + 心跳 + 消息队列 + 自适应重试 ==========
 
+
 @dataclass
 class StateTimeoutConfig:
     """状态超时配置（自适应）"""
+
     state: AgentState
     timeout_seconds: Optional[int] = None  # None = 无超时
     heartbeat_interval: int = 30  # 心跳间隔（秒）
@@ -293,7 +298,6 @@ class AdaptiveTimeoutManager:
         - CLARIFYING: 超时由用户决定，默认3600s防止永久挂起
         """
         context = context or {}
-        state_name = state.value.upper()
 
         if state == AgentState.IDLE:
             return None
@@ -301,6 +305,7 @@ class AdaptiveTimeoutManager:
         # 从历史数据学习超时（替代写死值）
         if state.value in self._timeout_history and self._timeout_history[state.value]:
             import statistics
+
             return int(statistics.median(self._timeout_history[state.value]))
 
         # 无历史数据时的启发式计算（仅首次）
@@ -352,6 +357,7 @@ class AdaptiveTimeoutManager:
 @dataclass(order=True)
 class PrioritizedMessage:
     """带优先级的消息（用于消息队列）"""
+
     priority: int
     timestamp: float
     message: Any = field(compare=False)
@@ -360,10 +366,11 @@ class PrioritizedMessage:
 
 class MessagePriority:
     """消息优先级定义"""
-    EMERGENCY = 0   # 紧急：系统关闭、强制停止
-    CONTROL = 1     # 控制：pause, cancel, resume
-    APPROVAL = 2    # 审批：approval_granted, approval_denied
-    NORMAL = 3      # 普通：新任务、查询
+
+    EMERGENCY = 0  # 紧急：系统关闭、强制停止
+    CONTROL = 1  # 控制：pause, cancel, resume
+    APPROVAL = 2  # 审批：approval_granted, approval_denied
+    NORMAL = 3  # 普通：新任务、查询
 
 
 class MessageQueue:
@@ -404,18 +411,22 @@ class MessageQueue:
             return True
         return trigger in allowed
 
-    def enqueue(self, trigger: str, priority: int = MessagePriority.NORMAL,
-                metadata: dict = None) -> bool:
+    def enqueue(
+        self, trigger: str, priority: int = MessagePriority.NORMAL, metadata: dict = None
+    ) -> bool:
         """处理消息：可中断则立即处理，否则入队排队"""
         if self.is_interruptible(trigger):
             return True  # 立即处理由调用方执行
         with self._lock:
-            heapq.heappush(self._queue, PrioritizedMessage(
-                priority=priority,
-                timestamp=time.time(),
-                message={"trigger": trigger, "metadata": metadata},
-                msg_type="normal"
-            ))
+            heapq.heappush(
+                self._queue,
+                PrioritizedMessage(
+                    priority=priority,
+                    timestamp=time.time(),
+                    message={"trigger": trigger, "metadata": metadata},
+                    msg_type="normal",
+                ),
+            )
         return True
 
     def process_queue(self):
@@ -436,11 +447,11 @@ class MessageQueue:
 import json
 import os
 import sqlite3
-from dataclasses import asdict
 
 
 class TransitionTrigger(Enum):
     """状态转换触发器（V2）"""
+
     TASK_RECEIVED = "task_received"
     START_EXECUTION = "start_execution"
     CANCEL = "cancel"
@@ -459,6 +470,7 @@ class TransitionTrigger(Enum):
 @dataclass
 class StateTransition:
     """状态转换记录"""
+
     from_state: str = ""
     to_state: str = ""
     trigger: str = ""
@@ -469,6 +481,7 @@ class StateTransition:
 @dataclass
 class StateSnapshot:
     """状态快照"""
+
     agent_id: str = ""
     task_id: str = ""
     state: str = ""
@@ -561,12 +574,14 @@ class AgentStateMachine:
         self._current_state = target_state
 
         # 记录历史
-        self._transition_history.append(StateTransition(
-            from_state=old_state,
-            to_state=target_state,
-            trigger=trigger.value,
-            metadata=metadata or {},
-        ))
+        self._transition_history.append(
+            StateTransition(
+                from_state=old_state,
+                to_state=target_state,
+                trigger=trigger.value,
+                metadata=metadata or {},
+            )
+        )
 
         # 执行进入动作
         if target_state in self._entry_actions:
@@ -663,8 +678,7 @@ class StatePersistence:
             conn.commit()
         logger.info(f"StatePersistence 初始化完成: {self.db_path}")
 
-    def save_snapshot(self, snapshot: StateSnapshot, agent_id: str,
-                      timeout_config: dict):
+    def save_snapshot(self, snapshot: StateSnapshot, agent_id: str, timeout_config: dict):
         """
         保存状态快照
 
@@ -737,8 +751,9 @@ class StatePersistence:
             conn.commit()
         logger.debug(f"转换记录: {transition.from_state} → {transition.to_state}")
 
-    def record_heartbeat(self, agent_id: str, task_id: str, state: str,
-                         interval: int, timeout: int = None):
+    def record_heartbeat(
+        self, agent_id: str, task_id: str, state: str, interval: int, timeout: int = None
+    ):
         """
         记录心跳
 
@@ -750,6 +765,7 @@ class StatePersistence:
             timeout: 超时时间（秒）
         """
         from datetime import datetime
+
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 """INSERT INTO heartbeats
@@ -765,4 +781,3 @@ class StatePersistence:
                 ),
             )
             conn.commit()
-

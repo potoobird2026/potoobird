@@ -22,13 +22,14 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Callable
+from typing import Optional
 
 logger = logging.getLogger("long_agent.execution.sub_agent_manager")
 
 
 class SubAgentStatus(Enum):
     """子 Agent 状态"""
+
     PENDING = "pending"
     RUNNING = "running"
     WAITING_APPROVAL = "waiting_approval"
@@ -42,6 +43,7 @@ class SubAgentStatus(Enum):
 @dataclass
 class SubAgentTask:
     """子 Agent 任务"""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     description: str = ""
     tool_name: str = ""
@@ -52,6 +54,7 @@ class SubAgentTask:
 @dataclass
 class SubAgent:
     """子 Agent 实例"""
+
     id: str
     task: SubAgentTask
     status: SubAgentStatus = SubAgentStatus.PENDING
@@ -74,8 +77,9 @@ class SubAgentManager:
     失败隔离：每个子 Agent 独立运行，异常不影响其他子 Agent。
     """
 
-    def __init__(self, tool_system=None, llm_fn=None,
-                 approval_gate=None, max_concurrent: int = None):
+    def __init__(
+        self, tool_system=None, llm_fn=None, approval_gate=None, max_concurrent: int = None
+    ):
         """
         Args:
             tool_system: 工具系统
@@ -118,9 +122,7 @@ class SubAgentManager:
         logger.info(f"子 Agent 创建: {subagent.id} ({task.description})")
 
         # 启动异步执行
-        subagent._task_future = asyncio.create_task(
-            self._execute(subagent)
-        )
+        subagent._task_future = asyncio.create_task(self._execute(subagent))
         return subagent
 
     async def _execute(self, subagent: SubAgent):
@@ -157,8 +159,7 @@ class SubAgentManager:
         finally:
             subagent.completed_at = datetime.utcnow()
 
-    async def wait(self, subagent_id: str,
-                   timeout: int = None) -> Optional[SubAgent]:
+    async def wait(self, subagent_id: str, timeout: int = None) -> Optional[SubAgent]:
         """
         等待子 Agent 完成
 

@@ -36,9 +36,9 @@ import asyncio
 import logging
 import math
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import Enum
 from typing import Optional
-from datetime import datetime
 
 logger = logging.getLogger("long_agent.context.compressor")
 
@@ -97,16 +97,16 @@ class ContextCompressor:
 
     # 默认参数（科学依据见各算法，均可通过构造函数覆盖）
     # 遗忘曲线参数
-    DEFAULT_FORGETTING_DECAY = 0.1       # 衰减系数（Ebbinghaus S 参数的倒数）
-    DEFAULT_FORGETTING_THRESHOLD = 0.2    # 保留阈值（记忆强度 < 0.2 时丢弃）
+    DEFAULT_FORGETTING_DECAY = 0.1  # 衰减系数（Ebbinghaus S 参数的倒数）
+    DEFAULT_FORGETTING_THRESHOLD = 0.2  # 保留阈值（记忆强度 < 0.2 时丢弃）
 
     # CUSUM 参数
-    DEFAULT_CUSUM_THRESHOLD = 3.0         # 突变点阈值（标准差的 3 倍）
-    DEFAULT_CUSUM_DRIFT = 0.5             # 漂移参数
+    DEFAULT_CUSUM_THRESHOLD = 3.0  # 突变点阈值（标准差的 3 倍）
+    DEFAULT_CUSUM_DRIFT = 0.5  # 漂移参数
 
     # 上下文预算参数
-    DEFAULT_MAX_CONTEXT_MESSAGES = 20     # 最大上下文消息数（认知负荷 7±2 的 3 倍）
-    DEFAULT_MIN_CONTEXT_MESSAGES = 5      # 最小上下文消息数（保证基本上下文）
+    DEFAULT_MAX_CONTEXT_MESSAGES = 20  # 最大上下文消息数（认知负荷 7±2 的 3 倍）
+    DEFAULT_MIN_CONTEXT_MESSAGES = 5  # 最小上下文消息数（保证基本上下文）
 
     # 幂律裁剪指数 α（Clauset et al., 2009）
     # 初始值 1.5，由 LLM 质量反馈动态调整
@@ -156,8 +156,9 @@ class ContextCompressor:
 
     # ---- 11算法融合评分引擎（可被 MemoryEvictor 复用）----
 
-    def score_memory(self, memory: dict, current_input: str = "",
-                     session_context: dict = None) -> dict:
+    def score_memory(
+        self, memory: dict, current_input: str = "", session_context: dict = None
+    ) -> dict:
         """
         对单条记忆进行多算法融合评分（11算法）。
 
@@ -268,14 +269,14 @@ class ContextCompressor:
             return 0.0
 
         from collections import Counter
+
         char_counts = Counter(content)
         total_chars = len(content)
         if total_chars == 0:
             return 0.0
 
         entropy = -sum(
-            (count / total_chars) * math.log2(count / total_chars)
-            for count in char_counts.values()
+            (count / total_chars) * math.log2(count / total_chars) for count in char_counts.values()
         )
         # 归一化：以 log2(唯一字符数) 为理论最大熵
         unique_chars = len(char_counts)
@@ -333,8 +334,10 @@ class ContextCompressor:
         if not current_input:
             return 0.5
         content = memory.get("content", "")
+
         def bigrams(text):
-            return set(text[i:i+2] for i in range(len(text)-1))
+            return set(text[i : i + 2] for i in range(len(text) - 1))
+
         bg_a = bigrams(current_input)
         bg_b = bigrams(content)
         if not bg_a or not bg_b:
@@ -454,9 +457,9 @@ class ContextCompressor:
 
         # 阶段1：双锚点保边
         bounds = self._get_dual_anchor_bounds(messages)
-        anchor_prefix = messages[:bounds.compressible_start]
-        compressible_region = messages[bounds.compressible_start:bounds.compressible_end]
-        anchor_suffix = messages[bounds.compressible_end:]
+        anchor_prefix = messages[: bounds.compressible_start]
+        compressible_region = messages[bounds.compressible_start : bounds.compressible_end]
+        anchor_suffix = messages[bounds.compressible_end :]
 
         if not compressible_region:
             # 锚点覆盖全部，无需压缩
@@ -470,12 +473,14 @@ class ContextCompressor:
         scored = []
         for msg in compressible_region:
             scoring = self.score_memory(msg, current_input, session_context=None)
-            scored.append({
-                "memory": msg,
-                "score": scoring["final_score"],
-                "scores_detail": scoring["scores"],
-                "weights": scoring["weights"],
-            })
+            scored.append(
+                {
+                    "memory": msg,
+                    "score": scoring["final_score"],
+                    "scores_detail": scoring["scores"],
+                    "weights": scoring["weights"],
+                }
+            )
 
         # 阶段3：幂律裁剪
         pruned = self.apply_power_law_pruning(scored)
@@ -487,7 +492,6 @@ class ContextCompressor:
         # 如果幂律裁剪后仍然超过 max_msg，按评分从高到低截取
         if len(final_messages) > max_msg:
             # 锚点始终保留，只对中间区域按评分截取
-            non_anchor = [item["memory"] for item in pruned]
             # 按评分降序
             scored_non_anchor = sorted(pruned, key=lambda x: x["score"], reverse=True)
             allowed = max_msg - len(anchor_prefix) - len(anchor_suffix)
@@ -498,20 +502,20 @@ class ContextCompressor:
         # 填充结果
         kept_ids = {m.get("id", str(i)) for i, m in enumerate(final_messages)}
         result.kept_ids = list(kept_ids)
-        result.kept_indices = [
-            i for i, m in enumerate(messages)
-            if m.get("id", str(i)) in kept_ids
-        ]
+        result.kept_indices = [i for i, m in enumerate(messages) if m.get("id", str(i)) in kept_ids]
         result.pruned_count = len(messages) - len(final_messages)
         result.compressed_count = len(final_messages)
         result.compressed_token_count = self._estimate_tokens(
-            [m.get("id", str(i)) for i, m in enumerate(messages)
-             if m.get("id", str(i)) not in kept_ids]
+            [
+                m.get("id", str(i))
+                for i, m in enumerate(messages)
+                if m.get("id", str(i)) not in kept_ids
+            ]
         )
 
         logger.info(
             f"V2压缩: {result.original_count} → {len(final_messages)} "
-            f"(锚点前={bounds.compressible_start}, 锚点后={len(messages)-bounds.compressible_end}, "
+            f"(锚点前={bounds.compressible_start}, 锚点后={len(messages) - bounds.compressible_end}, "
             f"移除 {result.pruned_count} 条, α={self.alpha:.2f})"
         )
 
@@ -532,8 +536,7 @@ class ContextCompressor:
         if end <= start:
             end = start + 1
         return DualAnchorBounds(
-            anchor_count=M, recent_count=N,
-            compressible_start=start, compressible_end=end
+            anchor_count=M, recent_count=N, compressible_start=start, compressible_end=end
         )
 
     @staticmethod
@@ -550,6 +553,7 @@ class ContextCompressor:
 
 class CompressState(Enum):
     """后台压缩进程状态"""
+
     SLEEP = "sleep"
     COMPRESSING = "compressing"
     MONITORING = "monitoring"
@@ -558,8 +562,9 @@ class CompressState(Enum):
 @dataclass
 class DualAnchorBounds:
     """双锚点边界"""
-    anchor_count: int = 0   # M: 最早锚点消息数
-    recent_count: int = 0   # N: 最近保留消息数
+
+    anchor_count: int = 0  # M: 最早锚点消息数
+    recent_count: int = 0  # N: 最近保留消息数
     compressible_start: int = 0
     compressible_end: int = 0
 
@@ -570,7 +575,7 @@ class DualAnchorStrategy:
 
     保留最近N条工作记忆 + 最早M条锚点，只压缩中间区域。
     所有参数来自用户历史数据拟合或 LLM 动态评估，无写死默认值。
-"""
+    """
 
     @staticmethod
     def is_anchor(msg: dict, session_messages: list, user_id: str = "") -> bool:
@@ -625,10 +630,12 @@ class DualAnchorStrategy:
             return 6
 
         from collections import Counter
+
         word_counts = Counter(words)
         total = len(words)
         import math
-        h_recent = -sum((c/total) * math.log2(c/total) for c in word_counts.values())
+
+        h_recent = -sum((c / total) * math.log2(c / total) for c in word_counts.values())
 
         # 获取历史平均熵（无数据时使用启发式）
         h_avg = user_history.get("avg_entropy", 3.0) if user_history else 3.0
@@ -639,6 +646,7 @@ class DualAnchorStrategy:
         n_min = user_history.get("min_recent_window", 4) if user_history else 4
 
         import math
+
         N = max(n_min, math.ceil(h_recent / h_avg))
         return max(2, min(N, 20))  # 范围 [2, 20]
 
@@ -663,8 +671,9 @@ class FeedbackEngine:
         self._sensitivity_table: dict = {}
         self._lessons: list = []
 
-    def detect_loss_signals(self, new_user_msg: str, compressed_messages: list,
-                            session_context: str) -> list:
+    def detect_loss_signals(
+        self, new_user_msg: str, compressed_messages: list, session_context: str
+    ) -> list:
         """检测信息丢失信号"""
         signals = []
         # S1: 重复询问（语义相似度 > 0.85）
@@ -703,7 +712,7 @@ class BackgroundCompressor:
     读写锁 + 分批压缩 + 紧急退出，零阻塞对话路径。
     """
 
-    def __init__(self, compressor: 'ContextCompressor', llm_client=None):
+    def __init__(self, compressor: "ContextCompressor", llm_client=None):
         self.compressor = compressor
         self.llm = llm_client
         self._state = CompressState.SLEEP
@@ -716,9 +725,9 @@ class BackgroundCompressor:
 
         # 参数（来自用户历史数据，不写死）
         self.N_threshold: Optional[int] = None  # 激活线
-        self.N_target: Optional[int] = None     # 目标线
-        self._batch_size: int = 3               # 每批压缩条数
-        self._adjust_interval: int = 100        # LLM动态调整间隔
+        self.N_target: Optional[int] = None  # 目标线
+        self._batch_size: int = 3  # 每批压缩条数
+        self._adjust_interval: int = 100  # LLM动态调整间隔
 
     async def signal_maybe_compress(self, session):
         """检查是否需要激活压缩（由 add_message 调用）"""
@@ -743,7 +752,9 @@ class BackgroundCompressor:
                 self._state = CompressState.MONITORING
                 break
             # 取一批压缩
-            batch = session.messages[bounds.compressible_start:bounds.compressible_start + self._batch_size]
+            batch = session.messages[
+                bounds.compressible_start : bounds.compressible_start + self._batch_size
+            ]
             if not batch:
                 break
             # 调用 v1.2 算法核心
@@ -753,9 +764,9 @@ class BackgroundCompressor:
                 # 替换 batch 为压缩摘要
                 new_msg = {"role": "system", "content": f"[压缩摘要] {result.summary}"}
                 session.messages = (
-                    session.messages[:bounds.compressible_start] +
-                    [new_msg] +
-                    session.messages[bounds.compressible_start + len(batch):]
+                    session.messages[: bounds.compressible_start]
+                    + [new_msg]
+                    + session.messages[bounds.compressible_start + len(batch) :]
                 )
             self._quality_scores.append(result.quality_score)
             self._compress_count += 1
@@ -771,8 +782,7 @@ class BackgroundCompressor:
         if end <= start:
             end = start + 1
         return DualAnchorBounds(
-            anchor_count=M, recent_count=N,
-            compressible_start=start, compressible_end=end
+            anchor_count=M, recent_count=N, compressible_start=start, compressible_end=end
         )
 
     def _calc_context_size(self, session) -> int:
@@ -783,7 +793,7 @@ class BackgroundCompressor:
         """首次初始化阈值（从模型配置和用户历史数据计算）"""
         # context_window 从 ModelConfig 读取，通过 compressor.__init__ 传入
         context_window = self.compressor.context_window
-        avg_msg_tokens = getattr(self.compressor, '_avg_message_length', 200)
+        avg_msg_tokens = getattr(self.compressor, "_avg_message_length", 200)
         # R_safe: 安全比例（初始值，运行后自适应）
         R_safe = 0.7
         self.N_threshold = max(20, int(context_window / max(avg_msg_tokens, 1) * R_safe))

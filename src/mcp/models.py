@@ -14,8 +14,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-
 # ── 传输类型 ──────────────────────────────────────────────
+
 
 class TransportType(enum.Enum):
     STDIO = "stdio"
@@ -23,6 +23,7 @@ class TransportType(enum.Enum):
 
 
 # ── 服务端状态 ────────────────────────────────────────────
+
 
 class ServerStatus(enum.Enum):
     DISCONNECTED = "disconnected"
@@ -33,24 +34,25 @@ class ServerStatus(enum.Enum):
 
 # ── 服务端配置 ────────────────────────────────────────────
 
+
 @dataclass
 class McpServerConfig:
     """MCP 服务端配置（对应 mcp_servers 表一行）"""
 
-    id: str                                          # 唯一标识
-    name: str                                        # 显示名称
-    transport: str = "stdio"                         # "stdio" | "http"
+    id: str  # 唯一标识
+    name: str  # 显示名称
+    transport: str = "stdio"  # "stdio" | "http"
     # Stdio 专用
-    command: str = ""                                # 可执行文件路径
-    args: list[str] = field(default_factory=list)    # 命令行参数
+    command: str = ""  # 可执行文件路径
+    args: list[str] = field(default_factory=list)  # 命令行参数
     env: dict[str, str] = field(default_factory=dict)  # 环境变量
     # HTTP 专用
-    url: str = ""                                    # 服务端 URL
+    url: str = ""  # 服务端 URL
     headers: dict[str, str] = field(default_factory=dict)  # 自定义请求头
     # 通用
-    enabled: bool = True                             # 是否启用
-    auto_connect: bool = True                        # 启动时自动连接
-    timeout: float = 30.0                            # 调用超时（秒）
+    enabled: bool = True  # 是否启用
+    auto_connect: bool = True  # 启动时自动连接
+    timeout: float = 30.0  # 调用超时（秒）
     # 元数据
     created_at: str = ""
     updated_at: str = ""
@@ -101,11 +103,13 @@ class McpServerConfig:
     @staticmethod
     def _json(v: Any) -> str:
         import json
+
         return json.dumps(v, ensure_ascii=False)
 
     @staticmethod
     def _parse_json(v: Any, default: Any) -> Any:
         import json
+
         if isinstance(v, str):
             try:
                 return json.loads(v)
@@ -115,6 +119,7 @@ class McpServerConfig:
 
 
 # ── 工具元数据 ────────────────────────────────────────────
+
 
 @dataclass
 class McpToolInfo:
@@ -127,6 +132,7 @@ class McpToolInfo:
 
     def to_row(self) -> dict[str, Any]:
         import json
+
         return {
             "server_id": self.server_id,
             "tool_name": self.name,
@@ -138,6 +144,7 @@ class McpToolInfo:
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> McpToolInfo:
         import json
+
         schema = {}
         raw = row.get("input_schema", "{}")
         if isinstance(raw, str):
@@ -155,6 +162,7 @@ class McpToolInfo:
 
 # ── 服务端运行时信息 ──────────────────────────────────────
 
+
 @dataclass
 class McpServerInfo:
     """MCP 服务端运行时信息"""
@@ -169,6 +177,7 @@ class McpServerInfo:
 
 
 # ── 统一调用结果 ──────────────────────────────────────────
+
 
 @dataclass
 class McpResult:

@@ -28,9 +28,11 @@ logger = logging.getLogger("long_agent.security")
 # SecurityGuard — 安全防护
 # ============================================================
 
+
 @dataclass
 class SecurityCheckResult:
     """安全检查结果"""
+
     is_safe: bool = True
     threat_type: str = ""
     description: str = ""
@@ -85,7 +87,9 @@ class SecurityGuard:
             SecurityCheckResult
         """
         if not user_input:
-            return SecurityCheckResult(is_safe=True, original_input=user_input, sanitized_input=user_input)
+            return SecurityCheckResult(
+                is_safe=True, original_input=user_input, sanitized_input=user_input
+            )
 
         for pattern in self.PROMPT_INJECTION_PATTERNS:
             if re.search(pattern, user_input, re.IGNORECASE):
@@ -173,6 +177,7 @@ class SecurityGuard:
 # ApprovalModule — 审批模块
 # ============================================================
 
+
 class ApprovalStatus(Enum):
     PENDING = "pending"
     APPROVED = "approved"
@@ -184,6 +189,7 @@ class ApprovalStatus(Enum):
 @dataclass
 class ApprovalRequest:
     """审批请求"""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     action: str = ""
     params: dict = field(default_factory=dict)
@@ -248,8 +254,7 @@ class ApprovalModule:
         }
         return risk_map.get(action, 0.5)
 
-    def calculate_timeout(self, risk_score: float,
-                          urgency_score: float = 0.5) -> float:
+    def calculate_timeout(self, risk_score: float, urgency_score: float = 0.5) -> float:
         """
         计算自适应超时时间
 
@@ -265,8 +270,9 @@ class ApprovalModule:
         timeout = self.base_timeout * (1 + risk_score) / (1 + urgency_score)
         return max(60.0, min(timeout, 7200.0))  # 最短1分钟，最长2小时
 
-    async def request_approval(self, action: str, params: dict = None,
-                               urgency_score: float = 0.5) -> ApprovalRequest:
+    async def request_approval(
+        self, action: str, params: dict = None, urgency_score: float = 0.5
+    ) -> ApprovalRequest:
         """
         请求审批
 
@@ -290,13 +296,11 @@ class ApprovalModule:
         )
         self._pending[request.id] = request
         logger.info(
-            f"审批请求 [{request.id}]: {action} "
-            f"(风险={risk_score:.2f}, 超时={timeout:.0f}s)"
+            f"审批请求 [{request.id}]: {action} (风险={risk_score:.2f}, 超时={timeout:.0f}s)"
         )
         return request
 
-    def approve(self, request_id: str, approver: str = "user",
-                reason: str = "") -> ApprovalRequest:
+    def approve(self, request_id: str, approver: str = "user", reason: str = "") -> ApprovalRequest:
         """批准"""
         request = self._pending.get(request_id)
         if not request:
@@ -310,8 +314,7 @@ class ApprovalModule:
         logger.info(f"审批通过 [{request_id}]: {request.action}")
         return request
 
-    def reject(self, request_id: str, approver: str = "user",
-               reason: str = "") -> ApprovalRequest:
+    def reject(self, request_id: str, approver: str = "user", reason: str = "") -> ApprovalRequest:
         """拒绝"""
         request = self._pending.get(request_id)
         if not request:
@@ -338,15 +341,17 @@ class ApprovalModule:
 # ConflictChecker — 冲突检测器
 # ============================================================
 
+
 class ConflictType(Enum):
-    DIRECT = "direct"           # 直接冲突
-    POTENTIAL = "potential"     # 潜在矛盾
-    NONE = "none"               # 无冲突
+    DIRECT = "direct"  # 直接冲突
+    POTENTIAL = "potential"  # 潜在矛盾
+    NONE = "none"  # 无冲突
 
 
 @dataclass
 class Conflict:
     """冲突记录"""
+
     new_knowledge: str = ""
     existing_knowledge: str = ""
     conflict_type: ConflictType = ConflictType.NONE
@@ -376,8 +381,7 @@ class ConflictChecker:
         """
         self.jaccard_threshold = jaccard_threshold or 0.3
 
-    def check(self, new_knowledge: str,
-              existing_knowledge: list[str]) -> list[Conflict]:
+    def check(self, new_knowledge: str, existing_knowledge: list[str]) -> list[Conflict]:
         """
         检查新知识与现有知识是否冲突
 
@@ -412,8 +416,7 @@ class ConflictChecker:
         union = set_a | set_b
         return len(intersection) / len(union)
 
-    def _semantic_check(self, new: str, existing: str,
-                        jaccard: float) -> Conflict:
+    def _semantic_check(self, new: str, existing: str, jaccard: float) -> Conflict:
         """
         语义分析（简化版）
 
@@ -443,11 +446,13 @@ class ConflictChecker:
 # CredentialPool — 凭证池
 # ============================================================
 
+
 @dataclass
 class CredentialEntry:
     """凭证条目"""
+
     key: str = ""
-    value: str = ""     # V2: 加密存储
+    value: str = ""  # V2: 加密存储
     provider: str = ""
     created_at: datetime = field(default_factory=datetime.utcnow)
     last_used: Optional[datetime] = None
@@ -478,9 +483,7 @@ class CredentialPool:
         """
         if not value:
             raise ValueError(f"凭证 {key} 的值不能为空（G-001）")
-        self._credentials[key] = CredentialEntry(
-            key=key, value=value, provider=provider
-        )
+        self._credentials[key] = CredentialEntry(key=key, value=value, provider=provider)
         logger.info(f"添加凭证: {key}（provider={provider}）")
 
     def get(self, key: str) -> str:
@@ -498,9 +501,7 @@ class CredentialPool:
         """
         entry = self._credentials.get(key)
         if not entry:
-            raise KeyError(
-                f"凭证 {key} 不存在（G-010: 缺失就问用户，不编造）"
-            )
+            raise KeyError(f"凭证 {key} 不存在（G-010: 缺失就问用户，不编造）")
         entry.last_used = datetime.utcnow()
         entry.use_count += 1
         return entry.value
@@ -523,7 +524,6 @@ import base64
 import json
 import os
 import secrets
-from datetime import timedelta
 
 
 class CredentialPoolV2:
@@ -540,8 +540,7 @@ class CredentialPoolV2:
     设计文档：DESIGN-V2.md §6.5
     """
 
-    def __init__(self, storage_path: str = None,
-                 rotation_strategy: str = None):
+    def __init__(self, storage_path: str = None, rotation_strategy: str = None):
         """
         Args:
             storage_path: 存储路径（None 时由用户配置或 LLM 动态确定）
@@ -601,6 +600,7 @@ class CredentialPoolV2:
         """
         try:
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
             key = self._master_key
             nonce = secrets.token_bytes(12)
             ciphertext = AESGCM(key).encrypt(
@@ -629,6 +629,7 @@ class CredentialPoolV2:
         """
         try:
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
             ciphertext = base64.b64decode(ciphertext_b64)
             nonce = base64.b64decode(nonce_b64)
             plaintext = AESGCM(self._master_key).decrypt(nonce, ciphertext, None)
@@ -692,17 +693,13 @@ class CredentialPoolV2:
         if not self._master_key:
             raise RuntimeError("请先调用 set_master_key() 设置主密钥（G-010）")
         if name not in self._credentials:
-            raise KeyError(
-                f"凭证 {name} 不存在（G-010: 缺失就问用户，不编造）"
-            )
+            raise KeyError(f"凭证 {name} 不存在（G-010: 缺失就问用户，不编造）")
 
         # 检查冷却状态
         if name in self._cooldowns:
             if datetime.utcnow() < self._cooldowns[name]:
                 remaining = (self._cooldowns[name] - datetime.utcnow()).seconds
-                raise RuntimeError(
-                    f"凭证 {name} 处于冷却状态，剩余 {remaining}s"
-                )
+                raise RuntimeError(f"凭证 {name} 处于冷却状态，剩余 {remaining}s")
             else:
                 del self._cooldowns[name]
 
@@ -731,8 +728,8 @@ class CredentialPoolV2:
 
 # ========== V2 补全：ConflictChecker._llm_analyze_conflict ==========
 
-def _llm_analyze_conflict(knowledge_a: str, knowledge_b: str,
-                          llm_fn=None) -> float:
+
+def _llm_analyze_conflict(knowledge_a: str, knowledge_b: str, llm_fn=None) -> float:
     """
     LLM 语义分析冲突
 

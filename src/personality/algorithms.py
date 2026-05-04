@@ -17,7 +17,6 @@
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import Optional
 
 logger = logging.getLogger("long_agent.personality")
 
@@ -26,11 +25,13 @@ logger = logging.getLogger("long_agent.personality")
 # PID Controller — PID 控制器
 # ============================================================
 
+
 @dataclass
 class PIDConfig:
     """PID 参数配置"""
-    kp: float = 1.0   # 比例增益
-    ki: float = 0.1   # 积分增益
+
+    kp: float = 1.0  # 比例增益
+    ki: float = 0.1  # 积分增益
     kd: float = 0.05  # 微分增益
     setpoint: float = 0.5  # 目标值（人格目标状态）
     output_min: float = 0.0
@@ -77,8 +78,7 @@ class PIDController:
         # 积分项（带限幅防饱和）
         self._integral += error * dt
         self._integral = max(
-            -self.config.integral_limit,
-            min(self.config.integral_limit, self._integral)
+            -self.config.integral_limit, min(self.config.integral_limit, self._integral)
         )
         i_term = self.config.ki * self._integral
 
@@ -134,13 +134,15 @@ class PIDController:
 # Kalman Filter — 卡尔曼滤波器
 # ============================================================
 
+
 @dataclass
 class KalmanConfig:
     """卡尔曼滤波参数"""
-    process_noise: float = 0.01    # Q: 过程噪声协方差
+
+    process_noise: float = 0.01  # Q: 过程噪声协方差
     measurement_noise: float = 0.1  # R: 测量噪声协方差
-    initial_estimate: float = 0.5   # 初始估计值
-    initial_error: float = 1.0      # 初始估计误差
+    initial_estimate: float = 0.5  # 初始估计值
+    initial_error: float = 1.0  # 初始估计误差
 
 
 class KalmanFilter1D:
@@ -159,8 +161,8 @@ class KalmanFilter1D:
     def __init__(self, config: KalmanConfig = None):
         self.config = config or KalmanConfig()
         self._x = self.config.initial_estimate  # 状态估计
-        self._p = self.config.initial_error     # 估计误差协方差
-        self._q = self.config.process_noise     # 过程噪声
+        self._p = self.config.initial_error  # 估计误差协方差
+        self._q = self.config.process_noise  # 过程噪声
         self._r = self.config.measurement_noise  # 测量噪声
 
     @property
@@ -248,9 +250,11 @@ class KalmanFilter1D:
 # FuzzyController — 模糊控制器
 # ============================================================
 
+
 @dataclass
 class FuzzyRule:
     """模糊规则"""
+
     name: str = ""
     conditions: dict = field(default_factory=dict)  # {"error": "positive", "delta": "small"}
     output_set: str = "medium"  # 输出模糊集
@@ -306,9 +310,13 @@ class FuzzyController:
         """
         return [
             FuzzyRule("R1", {"error": "negative_large", "delta": "any"}, "increase_large", 1.0),
-            FuzzyRule("R2", {"error": "negative_small", "delta": "negative"}, "increase_small", 1.0),
+            FuzzyRule(
+                "R2", {"error": "negative_small", "delta": "negative"}, "increase_small", 1.0
+            ),
             FuzzyRule("R3", {"error": "zero", "delta": "zero"}, "hold", 1.0),
-            FuzzyRule("R4", {"error": "positive_small", "delta": "positive"}, "decrease_small", 1.0),
+            FuzzyRule(
+                "R4", {"error": "positive_small", "delta": "positive"}, "decrease_small", 1.0
+            ),
             FuzzyRule("R5", {"error": "positive_large", "delta": "any"}, "decrease_large", 1.0),
             FuzzyRule("R6", {"error": "negative_small", "delta": "positive"}, "hold", 0.8),
             FuzzyRule("R7", {"error": "positive_small", "delta": "negative"}, "hold", 0.8),
@@ -337,8 +345,7 @@ class FuzzyController:
                 if rule.output_set not in output_aggregate:
                     output_aggregate[rule.output_set] = 0.0
                 output_aggregate[rule.output_set] = max(
-                    output_aggregate[rule.output_set],
-                    strength * rule.weight
+                    output_aggregate[rule.output_set], strength * rule.weight
                 )
 
         # 3. 去模糊化（重心法）
@@ -410,6 +417,7 @@ class FuzzyController:
 # FusionEngine — 三路融合引擎
 # ============================================================
 
+
 @dataclass
 class PersonalityState:
     """
@@ -418,6 +426,7 @@ class PersonalityState:
     每个维度值域 [0, 100]，初始默认 50。
     每次交互后根据用户反馈微调，单次最大调整量由 PID 死区控制。
     """
+
     H: float = 50.0  # 诚实-谦逊
     E: float = 50.0  # 情绪性
     X: float = 50.0  # 外向性
@@ -474,7 +483,9 @@ class PersonalityFusionEngine:
             weights: 融合权重字典（None 时使用等权）
             max_single_adjust: 单次最大调整量（None 时使用 5.0）
         """
-        self.MAX_SINGLE_ADJUST = max_single_adjust if max_single_adjust is not None else self.DEFAULT_MAX_SINGLE_ADJUST
+        self.MAX_SINGLE_ADJUST = (
+            max_single_adjust if max_single_adjust is not None else self.DEFAULT_MAX_SINGLE_ADJUST
+        )
 
         # 每维独立一套 PID + 卡尔曼 + 模糊
         self._pid_controllers: dict[str, PIDController] = {}
@@ -493,19 +504,32 @@ class PersonalityFusionEngine:
         else:
             # 等权：所有算法均等权重
             self._weights = {
-                "pid": 0.2, "kalman": 0.15, "fuzzy": 0.15,
-                "bayesian": 0.2, "entropy": 0.1, "ucb": 0.1, "rl": 0.1,
+                "pid": 0.2,
+                "kalman": 0.15,
+                "fuzzy": 0.15,
+                "bayesian": 0.2,
+                "entropy": 0.1,
+                "ucb": 0.1,
+                "rl": 0.1,
             }
 
         # 历史误差记录（用于自适应权重）
         self._error_history: dict[str, list[float]] = {
-            "pid": [], "kalman": [], "fuzzy": [], "bayesian": [], "entropy": [], "ucb": [], "rl": []
+            "pid": [],
+            "kalman": [],
+            "fuzzy": [],
+            "bayesian": [],
+            "entropy": [],
+            "ucb": [],
+            "rl": [],
         }
 
         # 初始化每维的 PID 和卡尔曼
         for dim in PersonalityState.DIMENSIONS:
             pid_config = PIDConfig(
-                kp=0.5, ki=0.1, kd=0.05,
+                kp=0.5,
+                ki=0.1,
+                kd=0.05,
                 setpoint=50.0,  # 目标值由外部传入，此处为默认
                 output_min=-self.MAX_SINGLE_ADJUST,
                 output_max=self.MAX_SINGLE_ADJUST,
@@ -555,6 +579,7 @@ class PersonalityFusionEngine:
                 all_errors.extend(hist[-10:])
             if len(all_errors) >= 3:
                 import statistics
+
                 dead_zone = statistics.stdev(all_errors[-20:]) * 2
             else:
                 dead_zone = 0.0
@@ -569,31 +594,42 @@ class PersonalityFusionEngine:
             pid_output = pid.compute(current_val / 100.0, dt) * 100.0
 
             kalman = self._kalman_filters[dim]
-            kalman_output = kalman.filter(measurement=target_val, control_input=pid_output / 100.0) - current_val
+            kalman_output = (
+                kalman.filter(measurement=target_val, control_input=pid_output / 100.0)
+                - current_val
+            )
 
             delta = error / max(dt, 0.01)
-            fuzzy_output = self._fuzzy_controller.compute(error=error / 100.0, delta=delta / 100.0) * 100.0
+            fuzzy_output = (
+                self._fuzzy_controller.compute(error=error / 100.0, delta=delta / 100.0) * 100.0
+            )
 
             # 贝叶斯推断（安全兜底）
             try:
                 bayesian = self._bayesian_updates[dim]
                 evidence = (target_val - current_val) / 100.0
                 bayesian_result = bayesian.update(dimension=dim, evidence=evidence, weight=0.5)
-                bayesian_output = bayesian_result.get("posterior_probability", 0.5) * 100.0 - current_val
+                bayesian_output = (
+                    bayesian_result.get("posterior_probability", 0.5) * 100.0 - current_val
+                )
             except Exception:
                 bayesian_output = 0.0
 
             # 信息熵（安全兜底）
             try:
                 history_for_dim = self._error_history.get("pid", [])[-5:]
-                entropy_val = self._entropy_controller.calculate_entropy(history_for_dim) if history_for_dim else 0.5
+                entropy_val = (
+                    self._entropy_controller.calculate_entropy(history_for_dim)
+                    if history_for_dim
+                    else 0.5
+                )
                 entropy_output = error * 0.1 * (1 + entropy_val)
             except Exception:
                 entropy_output = 0.0
 
             # UCB1 多臂老虎机（安全兜底）
             try:
-                counts = getattr(self._ucb_bandit, 'counts', None)
+                counts = getattr(self._ucb_bandit, "counts", None)
                 if counts:
                     arm = self._ucb_bandit.select_arm()
                 else:
@@ -657,8 +693,12 @@ class PersonalityFusionEngine:
             PersonalityState: 新的人格状态（已 clamp 到 [0, 100]）
         """
         new_state = PersonalityState(
-            H=state.H, E=state.E, X=state.X,
-            A=state.A, C=state.C, O=state.O,
+            H=state.H,
+            E=state.E,
+            X=state.X,
+            A=state.A,
+            C=state.C,
+            O=state.O,
         )
         for dim, delta in adjustments.items():
             if dim in PersonalityState.DIMENSIONS:
@@ -714,8 +754,15 @@ class PersonalityFusionEngine:
         for dim in PersonalityState.DIMENSIONS:
             self._pid_controllers[dim].reset()
             self._kalman_filters[dim] = KalmanFilter1D(KalmanConfig())
-        self._weights = {"pid": 0.2, "kalman": 0.15, "fuzzy": 0.15,
-                         "bayesian": 0.2, "entropy": 0.1, "ucb": 0.1, "rl": 0.1}
+        self._weights = {
+            "pid": 0.2,
+            "kalman": 0.15,
+            "fuzzy": 0.15,
+            "bayesian": 0.2,
+            "entropy": 0.1,
+            "ucb": 0.1,
+            "rl": 0.1,
+        }
         for k in self._error_history:
             self._error_history[k] = []
 
@@ -724,11 +771,13 @@ class PersonalityFusionEngine:
 # BayesianUpdate — 贝叶斯推断
 # ============================================================
 
+
 @dataclass
 class BayesianConfig:
     """贝叶斯推断配置"""
-    prior_strength: float = 1.0   # 先验强度（等效样本数）
-    learning_rate: float = 0.1    # 学习率（控制后验更新速度）
+
+    prior_strength: float = 1.0  # 先验强度（等效样本数）
+    learning_rate: float = 0.1  # 学习率（控制后验更新速度）
     min_confidence: float = 0.01  # 最小置信度（避免零概率）
     max_confidence: float = 0.99  # 最大置信度（避免绝对确定）
 
@@ -760,7 +809,7 @@ class BayesianUpdate:
         if dimension not in self._alpha:
             s = self.config.prior_strength
             self._alpha[dimension] = s  # α 初始值
-            self._beta[dimension] = s   # β 初始值（均匀先验）
+            self._beta[dimension] = s  # β 初始值（均匀先验）
 
     def update(self, dimension: str, evidence: float, weight: float = 1.0) -> dict:
         """
@@ -789,8 +838,7 @@ class BayesianUpdate:
         mean = a / (a + b)
         variance = (a * b) / ((a + b) ** 2 * (a + b + 1))
         confidence = 1.0 - variance * 12  # 归一化置信度
-        confidence = max(self.config.min_confidence,
-                         min(self.config.max_confidence, confidence))
+        confidence = max(self.config.min_confidence, min(self.config.max_confidence, confidence))
 
         result = {
             "dimension": dimension,
@@ -850,14 +898,16 @@ class BayesianUpdate:
 # EntropyController — 信息熵控制器
 # ============================================================
 
+
 @dataclass
 class EntropyConfig:
     """信息熵控制器配置"""
-    target_entropy: float = 0.5    # 目标熵值（中等不确定性）
+
+    target_entropy: float = 0.5  # 目标熵值（中等不确定性）
     entropy_threshold: float = 0.3  # 熵阈值（低于此值视为确定性高）
     exploration_boost: float = 0.2  # 探索增益（高熵时增加探索）
-    min_exploration: float = 0.05   # 最小探索率
-    max_exploration: float = 0.8    # 最大探索率
+    min_exploration: float = 0.05  # 最小探索率
+    max_exploration: float = 0.8  # 最大探索率
 
 
 class EntropyController:
@@ -973,9 +1023,7 @@ class EntropyController:
         }
 
         if labels and len(labels) == len(probabilities):
-            result["distribution"] = {
-                label: round(p, 4) for label, p in zip(labels, probabilities)
-            }
+            result["distribution"] = {label: round(p, 4) for label, p in zip(labels, probabilities)}
 
         self._entropy_history.append(result)
         logger.debug(
@@ -1006,12 +1054,14 @@ class EntropyController:
 # UCB1Bandit — 多臂老虎机
 # ============================================================
 
+
 @dataclass
 class UCB1Config:
     """UCB1 配置"""
-    n_arms: int = 5              # 臂数量（可选策略数）
+
+    n_arms: int = 5  # 臂数量（可选策略数）
     exploration_factor: float = 1.414  # 探索因子 c = sqrt(2)
-    initial_pulls: int = 1       # 初始拉动次数（确保每个臂至少尝试一次）
+    initial_pulls: int = 1  # 初始拉动次数（确保每个臂至少尝试一次）
     reward_clip: tuple = (0.0, 1.0)  # 奖励裁剪范围
 
 
@@ -1046,8 +1096,8 @@ class UCB1Bandit:
 
         self._n_arms = n
         # 每个臂的统计量
-        self._counts = [0] * n        # 拉动次数
-        self._values = [0.0] * n      # 平均奖励
+        self._counts = [0] * n  # 拉动次数
+        self._values = [0.0] * n  # 平均奖励
         self._total_pulls = 0
         self._history: list[dict] = []
 
@@ -1068,6 +1118,7 @@ class UCB1Bandit:
 
         # 计算每个臂的 UCB 值
         import math
+
         total = self._total_pulls
         c = self.config.exploration_factor
         ucb_values = []
@@ -1101,11 +1152,13 @@ class UCB1Bandit:
         old_value = self._values[arm_index]
         self._values[arm_index] = old_value + (reward - old_value) / n
 
-        self._history.append({
-            "arm": self._arm_names[arm_index],
-            "reward": round(reward, 4),
-            "new_avg": round(self._values[arm_index], 4),
-        })
+        self._history.append(
+            {
+                "arm": self._arm_names[arm_index],
+                "reward": round(reward, 4),
+                "new_avg": round(self._values[arm_index], 4),
+            }
+        )
 
         logger.debug(
             f"UCB1 更新 [{self._arm_names[arm_index]}]: "
@@ -1120,8 +1173,10 @@ class UCB1Bandit:
                 "count": self._counts[i],
                 "average_reward": round(self._values[i], 4),
                 "ucb_value": round(
-                    self._values[i] + self.config.exploration_factor *
-                    math.sqrt(math.log(max(self._total_pulls, 1)) / max(self._counts[i], 1)), 4
+                    self._values[i]
+                    + self.config.exploration_factor
+                    * math.sqrt(math.log(max(self._total_pulls, 1)) / max(self._counts[i], 1)),
+                    4,
                 ),
             }
         return stats
@@ -1148,16 +1203,18 @@ class UCB1Bandit:
 # RLPersonalityAgent — 强化学习 (Q-Learning)
 # ============================================================
 
+
 @dataclass
 class RLConfig:
     """强化学习配置"""
-    learning_rate: float = 0.1     # α — 学习率
-    discount_factor: float = 0.9   # γ — 折扣因子
-    epsilon: float = 0.1           # ε — 探索率
-    epsilon_decay: float = 0.995   # ε 衰减
-    epsilon_min: float = 0.01      # 最小 ε
-    n_states: int = 10             # 状态数（人格状态离散化）
-    n_actions: int = 5             # 动作数（可选调节动作）
+
+    learning_rate: float = 0.1  # α — 学习率
+    discount_factor: float = 0.9  # γ — 折扣因子
+    epsilon: float = 0.1  # ε — 探索率
+    epsilon_decay: float = 0.995  # ε 衰减
+    epsilon_min: float = 0.01  # 最小 ε
+    n_states: int = 10  # 状态数（人格状态离散化）
+    n_actions: int = 5  # 动作数（可选调节动作）
 
 
 class RLPersonalityAgent:
@@ -1184,9 +1241,9 @@ class RLPersonalityAgent:
     # 预定义动作含义（5个动作）
     ACTION_NAMES = [
         "decrease_significantly",  # -0.2
-        "decrease_slightly",       # -0.05
-        "maintain",                # 0.0
-        "increase_slightly",       # +0.05
+        "decrease_slightly",  # -0.05
+        "maintain",  # 0.0
+        "increase_slightly",  # +0.05
         "increase_significantly",  # +0.2
     ]
 
@@ -1230,6 +1287,7 @@ class RLPersonalityAgent:
             (action_index, action_name)
         """
         import random
+
         eps = self.config.epsilon
 
         if random.random() < eps:
@@ -1237,8 +1295,7 @@ class RLPersonalityAgent:
             action = random.randint(0, self.config.n_actions - 1)
         else:
             # 利用：选择 Q 值最大的动作
-            action = max(range(self.config.n_actions),
-                         key=lambda a: self._q_table[state][a])
+            action = max(range(self.config.n_actions), key=lambda a: self._q_table[state][a])
 
         return action, self.ACTION_NAMES[action]
 
@@ -1270,8 +1327,7 @@ class RLPersonalityAgent:
 
         # ε 衰减
         self.config.epsilon = max(
-            self.config.epsilon_min,
-            self.config.epsilon * self.config.epsilon_decay
+            self.config.epsilon_min, self.config.epsilon * self.config.epsilon_decay
         )
 
         record = {
@@ -1343,8 +1399,7 @@ class RLPersonalityAgent:
         """
         policy = {}
         for s in range(self.config.n_states):
-            best_a = max(range(self.config.n_actions),
-                         key=lambda a: self._q_table[s][a])
+            best_a = max(range(self.config.n_actions), key=lambda a: self._q_table[s][a])
             policy[s] = {
                 "best_action": self.ACTION_NAMES[best_a],
                 "q_value": round(self._q_table[s][best_a], 4),

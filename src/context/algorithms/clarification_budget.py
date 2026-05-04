@@ -37,11 +37,11 @@ class ClarificationBudget:
     - decay_rate: 信息增益衰减率，由 LLM 根据领域知识评估
     """
 
-    max_budget: int = 3               # 最大追问次数（由 LLM 动态评估）
-    cost_per_attempt: float = 0.15    # 每次追问的成本（时间/用户体验）
-    decay_rate: float = 0.6           # 信息增益衰减率（每次追问后信息增益 × decay_rate）
-    attempts: int = 0                  # 已用追问次数
-    cumulative_gain: float = 0.0       # 累计信息增益
+    max_budget: int = 3  # 最大追问次数（由 LLM 动态评估）
+    cost_per_attempt: float = 0.15  # 每次追问的成本（时间/用户体验）
+    decay_rate: float = 0.6  # 信息增益衰减率（每次追问后信息增益 × decay_rate）
+    attempts: int = 0  # 已用追问次数
+    cumulative_gain: float = 0.0  # 累计信息增益
     _gains: list = field(default_factory=list)  # 每次追问的信息增益记录
 
     def remaining_budget(self) -> int:
@@ -63,7 +63,7 @@ class ClarificationBudget:
         # 基础信息增益：首次追问通常能获得较多信息
         base_gain = 0.5  # 默认值，实际由 LLM 评估
 
-        expected = base_gain * (self.decay_rate ** self.attempts)
+        expected = base_gain * (self.decay_rate**self.attempts)
         return max(0.0, min(1.0, expected))
 
     def should_continue(self, last_gain: float = None) -> bool:
@@ -89,9 +89,7 @@ class ClarificationBudget:
         # 2. 边际效益检查
         gain = last_gain if last_gain is not None else self.expected_gain()
         if gain <= self.cost_per_attempt:
-            logger.debug(
-                f"边际效益不足: gain={gain:.3f} <= cost={self.cost_per_attempt:.3f}"
-            )
+            logger.debug(f"边际效益不足: gain={gain:.3f} <= cost={self.cost_per_attempt:.3f}")
             return False
 
         return True
