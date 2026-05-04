@@ -1,0 +1,44 @@
+# Prometheus 告警规则 — Long Agent V2
+# 定义关键告警阈值
+
+groups:
+  - name: long_agent_alerts
+    rules:
+      # Agent 宕机告警
+      - alert: LongAgentDown
+        expr: up{job="long-agent"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Long Agent 宕机"
+          description: "Long Agent 已超过 1 分钟未响应 Prometheus 采集。"
+
+      # 错误率过高
+      - alert: LongAgentHighErrorRate
+        expr: rate(long_agent_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Long Agent 错误率过高"
+          description: "过去 5 分钟错误率超过 10%。"
+
+      # 响应时间过长
+      - alert: LongAgentSlowResponse
+        expr: histogram_quantile(0.95, rate(long_agent_llm_call_duration_ms_bucket[5m])) > 10000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Long Agent P95 响应时间过长"
+          description: "P95 响应时间超过 10 秒。"
+
+      # 存储组件异常
+      - alert: LongAgentStorageUnhealthy
+        expr: long_agent_storage_healthy == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Long Agent 存储组件异常"

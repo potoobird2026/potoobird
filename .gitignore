@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# 虚拟环境
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 数据文件（不入库）
+data/
+logs/
+*.db
+*.sqlite3
+
+# 敏感配置
+.env
+.env.local
+data/.fernet_key
+
+# 测试覆盖率
+.coverage
+htmlcov/
+.pytest_cache/
+
+# 临时文件
+*.tmp
+*.bak
+tests/debug/
+
+# OS
+.DS_Store
+Thumbs.db

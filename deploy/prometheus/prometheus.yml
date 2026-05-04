@@ -1,0 +1,29 @@
+# Prometheus 配置文件 — Long Agent V2
+# 采集 Agent 指标 + 自身监控
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+# 告警规则
+rule_files:
+  - "alerts.yml"
+
+# 采集目标
+scrape_configs:
+  # ── Agent 指标 ──────────────────────────
+  - job_name: "long-agent"
+    scrape_interval: 15s
+    metrics_path: "/metrics"
+    static_configs:
+      - targets:
+          - "${AGENT_HOST:-host.docker.internal}:${AGENT_METRICS_PORT:-8001}"
+        labels:
+          service: "long-agent"
+          environment: "${ENV:-development}"
+
+  # ── Prometheus 自身监控 ─────────────────
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

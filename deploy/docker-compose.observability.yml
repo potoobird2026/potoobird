@@ -1,0 +1,71 @@
+# Long Agent V2 — Prometheus + Grafana + Agent 可观测性栈
+#
+# 使用方法：
+#   docker compose -f deploy/docker-compose.observability.yml up -d
+#
+# 访问：
+#   Prometheus: http://localhost:9090
+#   Grafana:    http://localhost:3000 (admin/admin)
+#   Agent:      http://localhost:8001/metrics
+#   Agent Health: http://localhost:8001/health
+
+version: "3.8"
+
+services:
+  # ── Prometheus ──────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: long-agent-prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+    restart: unless-stopped
+    networks:
+      - long-agent-observability
+
+  # ── Grafana ─────────────────────────────────────
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: long-agent-grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_GRAFANA_PLUGINS=
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - long-agent-observability
+
+  # ── Grafana Alloy（可选，用于日志采集） ─────────
+  # alloy:
+  #   image: grafana/alloy:v1.0.0
+  #   container_name: long-agent-alloy
+  #   ports:
+  #     - "12345:12345"
+  #   volumes:
+  #     - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+  #     - /var/log/long-agent:/var/log/long-agent:ro
+  #   networks:
+  #     - long-agent-observability
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  long-agent-observability:
+    driver: bridge
