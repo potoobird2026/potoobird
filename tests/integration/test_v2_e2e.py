@@ -3,7 +3,7 @@ V2-T16 集成测试 — 核心链路端到端验证
 """
 import asyncio
 import tempfile
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -11,12 +11,11 @@ from src.errors.types import LLMResult
 from src.execution.goal_anchor import GoalAnchor
 from src.execution.snapshot_manager import SnapshotManager
 from src.execution.tool_registry import ToolLevel, ToolRegistry
-from src.llm.model_router import ModelConfig, ModelRouter
+from src.llm.model_router import ModelRouter
 from src.loop.agent_loop import AgentLoop, AgentState, LoopContext
 from src.security.guard import ConflictChecker, ConflictType, SecurityGuard
 from src.session.event_bus import EventBus
 from src.session.session_manager import SessionManager
-
 
 # ============================================================
 # 1. AgentLoop 主循环集成
@@ -87,8 +86,6 @@ class TestSessionEventIntegration:
     @pytest.mark.asyncio
     async def test_get_session_updates_activity(self):
         session = await self.manager.create_session(user_id="test-user")
-        import time
-        old_time = session.last_active_at
         await asyncio.sleep(0.01)
         retrieved = await self.manager.get_session(session.session_id)
         assert retrieved is not None
@@ -160,7 +157,6 @@ class TestModelRouterIntegration:
     async def test_fallback_on_primary_failure(self, router):
         """主模型失败后应切换到备用模型（验证模型注册和状态）"""
         # 验证两个模型都已注册
-        status = router.get_status()
         assert "primary" in router._models
         assert "fallback" in router._models
         # 验证当前活跃模型是 primary

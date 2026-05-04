@@ -8,16 +8,14 @@
 - JSON 日志格式
 """
 
-import asyncio
 import json
 import logging
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
+from src.observability.health import HealthChecker, HealthStatus, health_response
 from src.observability.metrics import MetricsCollector
-from src.observability.health import HealthChecker, HealthStatus, ComponentCheck, health_response
-
 
 # ─────────────────────────────────────────────
 # MetricsCollector V2 新增测试
@@ -181,13 +179,13 @@ class TestObservabilityRouter:
     def app(self):
         """创建测试用 FastAPI 应用"""
         try:
-            from starlette.testclient import TestClient
+            from starlette.testclient import TestClient  # noqa: F401
         except ImportError:
             pytest.skip("starlette 未安装")
 
+        from src.observability.health import HealthChecker
         from src.observability.http_server import create_observability_app
         from src.observability.metrics import MetricsCollector
-        from src.observability.health import HealthChecker
 
         metrics = MetricsCollector()
         metrics.increment("requests", 3)
@@ -284,12 +282,11 @@ class TestJsonFormatter:
         assert "test error" in parsed["exception"]
 
     def test_init_logging_json_mode(self):
+
         from src.config.settings import init_logging
-        import io
-        import sys
 
         # 捕获日志输出
-        logger = init_logging(log_level="DEBUG", log_file="/tmp/test_observability.log", json_format=True)
+        logger = init_logging(log_level="DEBUG", log_file="/tmp/test_observability.log", json_format=True)  # noqa: E501
         assert logger is not None
         # 清理 handlers 避免影响其他测试
         logger.handlers.clear()

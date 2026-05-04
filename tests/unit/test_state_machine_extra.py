@@ -10,16 +10,17 @@
 """
 
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+
 from src.loop.state import (
-    AdaptiveTimeoutManager,
+    VALID_TRANSITIONS,
     AdaptiveRetryPolicy,
+    AdaptiveTimeoutManager,
     AgentState,
     IllegalStateTransitionError,
     StateMachine,
-    VALID_TRANSITIONS,
 )
 
 

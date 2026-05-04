@@ -2,19 +2,21 @@
 ReportGenerator 单元测试
 覆盖：报告生成、结论映射、分层摘要、建议生成、风险评估、技术详情
 """
+
 import pytest
-from unittest.mock import MagicMock
-from datetime import datetime
 
 from src.delivery.report_generator import (
-    ReportGenerator, DeliveryReport,
-    ConfirmationManager, TaskConfirmation, ConfirmationStatus,
+    ConfirmationManager,
+    ConfirmationStatus,
+    DeliveryReport,
+    ReportGenerator,
 )
 from src.delivery.result_verifier import (
-    VerificationReport, VerificationItem,
-    VerificationLevel, VerificationStatus,
+    VerificationItem,
+    VerificationLevel,
+    VerificationReport,
+    VerificationStatus,
 )
-
 
 # ========== Helpers ==========
 
@@ -351,5 +353,5 @@ class TestConfirmationManager:
     @pytest.mark.asyncio
     async def test_verification_results_optional(self):
         mgr = ConfirmationManager()
-        c = await mgr.request_confirmation("t1", "任务", "结果", [], verification_results={"pass": True})
+        c = await mgr.request_confirmation("t1", "任务", "结果", [], verification_results={"pass": True})  # noqa: E501
         assert c.verification_results["pass"] is True

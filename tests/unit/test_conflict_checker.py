@@ -8,7 +8,8 @@
 """
 
 import pytest
-from src.security.guard import ConflictChecker, Conflict, ConflictType
+
+from src.security.guard import Conflict, ConflictChecker, ConflictType
 
 
 @pytest.fixture
@@ -52,7 +53,7 @@ class TestJaccardSimilarity:
 
 class TestSemanticCheck:
     def test_no_conflict(self, checker):
-        result = checker._semantic_check("completely different topic", "another unrelated subject", 0.1)
+        result = checker._semantic_check("completely different topic", "another unrelated subject", 0.1)  # noqa: E501
         assert result.conflict_type == ConflictType.NONE
 
     def test_potential_conflict(self, checker):

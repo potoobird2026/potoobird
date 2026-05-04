@@ -12,11 +12,10 @@
 
 from unittest.mock import MagicMock
 
-import pytest
 from src.execution.process_standard import (
+    ApprovalRecord,
     ProcessStandard,
     StepRecord,
-    ApprovalRecord,
 )
 
 

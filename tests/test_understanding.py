@@ -74,6 +74,7 @@ class TestClarification:
     async def test_with_llm_returns_question(self):
         """有 LLM 时返回追问结果"""
         from unittest.mock import AsyncMock
+
         from src.errors.types import LLMResult
         from src.understanding.engine import Intent, UnderstandingEngine
         llm = AsyncMock()
@@ -92,6 +93,7 @@ class TestClarification:
     async def test_with_llm_by_llm_directly(self):
         """直接调用 generate_clarification_by_llm"""
         from unittest.mock import AsyncMock
+
         from src.errors.types import LLMResult
         from src.understanding.engine import Intent, UnderstandingEngine
         llm = AsyncMock()
@@ -110,6 +112,7 @@ class TestClarification:
     async def test_llm_failure_raises(self):
         """LLM 返回失败时抛出 RuntimeError"""
         from unittest.mock import AsyncMock
+
         from src.errors.types import LLMResult
         from src.understanding.engine import Intent, UnderstandingEngine
         llm = AsyncMock()

@@ -4,12 +4,12 @@
 """
 
 import asyncio
+
 import pytest
 
-from src.session.session_manager import SessionManager, Session
-from src.session.event_bus import EventBus
 from src.llm.prompt_manager import PromptManager, PromptTemplate
-
+from src.session.event_bus import EventBus
+from src.session.session_manager import SessionManager
 
 # ======================== SessionManager ========================
 
@@ -31,7 +31,6 @@ class TestSessionManager:
         session = await mgr.create_session()
         sid = session.session_id
         original_time = session.last_active_at
-        import time
         await asyncio.sleep(0.05)
         result = await mgr.get_session(sid)
         assert result is not None
@@ -58,7 +57,6 @@ class TestSessionManager:
         mgr_short = SessionManager(idle_timeout=1)
         await mgr_short.create_session()
         assert mgr_short.active_count == 1
-        import time
         await asyncio.sleep(1.5)
         cleaned = await mgr_short.cleanup_expired()
         assert cleaned >= 1
@@ -133,7 +131,7 @@ class TestEventBus:
         assert results == ["ok"]
 
     def test_unsubscribe(self, bus):
-        handler = lambda d: None
+        def handler(d): return None
         bus.subscribe("unsub.event", handler)
         bus.unsubscribe("unsub.event", handler)
         assert handler not in bus._subscribers["unsub.event"]

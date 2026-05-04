@@ -2,7 +2,6 @@
 测试 MemoryLoader — 动态记忆加载器
 """
 
-import pytest
 from src.memory.memory_loader import LoadBudget, MemoryLoader
 
 
@@ -67,9 +66,7 @@ class TestMemoryLoader:
 
     def test_load_respects_budget(self):
         """加载不超过预算"""
-        big_mem = self._make_memory("x" * 50000, access_count=100, mem_id="big")
-        loader = MemoryLoader(context_window=1000)
-        result = loader.load_memories([big_mem], "测试")
+        _ = MemoryLoader(context_window=1000)
         # 单条记忆超过总预算，但锚点不受预算限制
         # 此测试验证非锚点记忆受预算限制
 

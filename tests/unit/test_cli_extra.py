@@ -9,10 +9,7 @@ CLI 入口补充测试 — 提升 src/entry/cli.py 覆盖率
 - run/once 命令注册验证
 """
 
-import json
-import os
-import tempfile
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -58,10 +55,13 @@ class TestCreateAgentLLMFailures:
         mock_provider = MagicMock()
         with patch("src.entry.cli.Settings", return_value=mock_settings), \
              patch("src.entry.cli.init_logging"), \
-             patch("src.llm.provider.OpenAIProvider", return_value=mock_provider) as MockProvider:
+             patch(
+                 "src.llm.provider.OpenAIProvider",
+                 return_value=mock_provider,
+             ) as mock_provider_cls:
             from src.entry import cli
             agent = cli.create_agent()
-            MockProvider.assert_called_once_with(
+            mock_provider_cls.assert_called_once_with(
                 api_key="sk-valid-key",
                 model="gpt-4o",
             )
@@ -112,8 +112,9 @@ class TestAuditShowCommand:
 
     def test_audit_show_no_entries(self, mock_settings, tmp_path):
         """无审计记录时显示提示"""
-        from src.entry import cli
         from typer.testing import CliRunner
+
+        from src.entry import cli
         runner = CliRunner()
         with patch("src.entry.cli.Settings", return_value=mock_settings), \
              patch("src.entry.cli.init_logging"):
@@ -122,8 +123,9 @@ class TestAuditShowCommand:
 
     def test_audit_show_with_limit(self, mock_settings, tmp_path):
         """测试 audit show --limit 参数"""
-        from src.entry import cli
         from typer.testing import CliRunner
+
+        from src.entry import cli
         runner = CliRunner()
         with patch("src.entry.cli.Settings", return_value=mock_settings), \
              patch("src.entry.cli.init_logging"):
@@ -145,8 +147,9 @@ class TestOnceCommand:
 
     def test_once_command_with_safe_input(self, mock_settings, tmp_path):
         """once 命令执行安全输入"""
-        from src.entry import cli
         from typer.testing import CliRunner
+
+        from src.entry import cli
         runner = CliRunner()
         with patch("src.entry.cli.Settings", return_value=mock_settings), \
              patch("src.entry.cli.init_logging"):
@@ -155,8 +158,9 @@ class TestOnceCommand:
 
     def test_once_command_read_only(self, mock_settings, tmp_path):
         """once 命令只读模式"""
-        from src.entry import cli
         from typer.testing import CliRunner
+
+        from src.entry import cli
         runner = CliRunner()
         with patch("src.entry.cli.Settings", return_value=mock_settings), \
              patch("src.entry.cli.init_logging"):

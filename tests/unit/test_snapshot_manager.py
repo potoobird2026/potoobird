@@ -4,8 +4,8 @@ SnapshotManager — 单元测试
 覆盖：快照保存/恢复/加载/清理/删除、TaskSnapshot 数据类
 """
 import os
-import tempfile
 import shutil
+import tempfile
 
 import pytest
 
@@ -33,7 +33,7 @@ class TestSnapshotSave:
         assert snap.state == {"key": "value"}
 
     def test_save_persists_to_file(self, manager, tmp_dir):
-        snap = manager.save_snapshot("task1", 0, {"step": 1})
+        _ = manager.save_snapshot("task1", 0, {"step": 1})  # noqa: F841
         files = os.listdir(tmp_dir)
         assert any(f.startswith("task1_") for f in files)
 

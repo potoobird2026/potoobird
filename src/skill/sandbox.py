@@ -10,7 +10,7 @@ import asyncio
 import logging
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
 logger = logging.getLogger("long_agent.skill")
@@ -53,7 +53,6 @@ def run_in_executor(
     try:
         if asyncio.iscoroutinefunction(handler):
             # 异步 handler：在事件循环中运行
-            loop = asyncio.get_event_loop()
             coro = handler(**params)
             task = asyncio.ensure_future(coro)
             # 使用 wait_for 实现超时

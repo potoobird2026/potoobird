@@ -36,7 +36,6 @@ def get_agent():
         llm_provider = None
         if settings.openai_api_key:
             from src.llm.provider import OpenAIProvider
-
             llm_provider = OpenAIProvider(
                 api_key=settings.openai_api_key,
                 model=settings.openai_model,
@@ -57,11 +56,7 @@ async def index(request: Request):
     p = agent["memory"].personality
     return templates.TemplateResponse(
         "index.html",
-        {
-            "request": request,
-            "memory_count": memory_count,
-            "personality": p,
-        },
+        {"request": request, "memory_count": memory_count, "personality": p},
     )
 
 
@@ -89,8 +84,7 @@ async def add_memory(request: Request):
     data = await request.json()
     agent = get_agent()
     result = await agent["memory"].remember(
-        content=data.get("content", ""),
-        layer=data.get("layer", "core"),
+        content=data.get("content", ""), layer=data.get("layer", "core"),
     )
     return {"id": result.id, "created": result.created}
 
@@ -106,14 +100,8 @@ async def delete_memory(memory_id: str):
 async def get_personality():
     agent = get_agent()
     p = agent["memory"].personality
-    return {
-        "H": p.get("H", 50),
-        "E": p.get("E", 50),
-        "X": p.get("X", 50),
-        "A": p.get("A", 50),
-        "C": p.get("C", 50),
-        "O": p.get("O", 50),
-    }
+    return {"H": p.get("H", 50), "E": p.get("E", 50), "X": p.get("X", 50),
+            "A": p.get("A", 50), "C": p.get("C", 50), "O": p.get("O", 50)}
 
 
 @app.put("/api/personality")
@@ -217,8 +205,10 @@ async def add_mcp_server(request: Request):
     try:
         from src.mcp.client import McpClientManager, McpServerConfig
         mcp = McpClientManager()
-        config = McpServerConfig(id=name.lower().replace(" ", "_"), name=name,
-                                 transport=transport, url=url)
+        config = McpServerConfig(
+            id=name.lower().replace(" ", "_"),
+            name=name, transport=transport, url=url,
+        )
         mcp.add_server(config)
         return {"ok": True}
     except Exception as e:
@@ -256,80 +246,3 @@ async def remove_mcp_server(server_id: str):
         return {"ok": True}
     except Exception as e:
         return {"error": str(e)}
-
-
-@app.get("/api/skills")
-async def list_skills():
-    """列出所有 Skill"""
-    try:
-        from src.skill.manager import SkillManager
-
-        sm = SkillManager()
-        sm.load_all()
-        return {"skills": sm.list_skills()}
-    except Exception as e:
-        return {"skills": [], "error": str(e)}
-
-
-@app.get("/api/mcp/status")
-async def mcp_status():
-    """MCP Client 连接状态（已连接的外部服务器列表）"""
-    try:
-        agent = get_agent()
-        mcp_client = agent.get("mcp_client")
-        if mcp_client:
-            return {
-                "status": "ok",
-                "mode": "client",
-                "servers": mcp_client.get_servers(),
-            }
-        return {"status": "no_client", "servers": []}
-    except Exception as e:
-        return {"status": "error", "error": str(e), "servers": []}
-
-
-@app.post("/api/mcp/connect")
-async def mcp_connect(request: Request):
-    """注册并连接外部 MCP 服务器"""
-    data = await request.json()
-    name = data.get("name", "")
-    url = data.get("url", "")
-    if not name or not url:
-        return {"error": "需要提供 name 和 url"}, 400
-    try:
-        agent = get_agent()
-        mcp_client = agent.get("mcp_client")
-        if not mcp_client:
-            return {"error": "MCP Client 未初始化"}, 500
-        mcp_client.register_server(name, url)
-        # 尝试连接
-        import asyncio
-
-        loop = asyncio.new_event_loop()
-        failed = loop.run_until_complete(mcp_client.connect_all())
-        loop.close()
-        # 连接成功后注入工具到 ToolRegistry
-        tool_registry = agent.get("tool_registry")
-        if tool_registry:
-            mcp_client.inject_to_tool_registry(tool_registry)
-        return {
-            "ok": True,
-            "connected": name not in failed,
-            "servers": mcp_client.get_servers(),
-        }
-    except Exception as e:
-        return {"error": str(e)}, 500
-
-
-@app.delete("/api/mcp/disconnect/{name}")
-async def mcp_disconnect(name: str):
-    """断开并移除外部 MCP 服务器"""
-    try:
-        agent = get_agent()
-        mcp_client = agent.get("mcp_client")
-        if not mcp_client:
-            return {"error": "MCP Client 未初始化"}, 500
-        mcp_client.remove_server(name)
-        return {"ok": True, "servers": mcp_client.get_servers()}
-    except Exception as e:
-        return {"error": str(e)}, 500

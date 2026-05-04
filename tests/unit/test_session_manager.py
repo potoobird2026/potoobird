@@ -1,7 +1,8 @@
 """SessionManager 单元测试"""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 
 class TestSession:
@@ -19,7 +20,7 @@ class TestSession:
         assert s.session_id == s.id
 
     def test_session_state_property(self):
-        from src.session.session_manager import Session, SessionStatus
+        from src.session.session_manager import Session
         s = Session()
         assert s.state == "active"
 
@@ -76,14 +77,14 @@ class TestSessionManager:
     @pytest.mark.asyncio
     async def test_on_message_returns_response(self):
         from src.session.session_manager import SessionManager
-        mgr = SessionManager(memory_manager=AsyncMock(), compressor=AsyncMock(), event_bus=AsyncMock())
+        mgr = SessionManager(memory_manager=AsyncMock(), compressor=AsyncMock(), event_bus=AsyncMock())  # noqa: E501
         response = await mgr.on_message("default", "user1", "你好")
         assert isinstance(response, str)
 
     @pytest.mark.asyncio
     async def test_on_message_appends_messages(self):
         from src.session.session_manager import SessionManager
-        mgr = SessionManager(memory_manager=AsyncMock(), compressor=AsyncMock(), event_bus=AsyncMock())
+        mgr = SessionManager(memory_manager=AsyncMock(), compressor=AsyncMock(), event_bus=AsyncMock())  # noqa: E501
         await mgr.on_message("default", "user1", "测试消息")
         sessions = [s for s in mgr._sessions.values() if s.universal_id]
         assert len(sessions) >= 1
@@ -91,7 +92,7 @@ class TestSessionManager:
     @pytest.mark.asyncio
     async def test_on_message_accumulates(self):
         from src.session.session_manager import SessionManager
-        mgr = SessionManager(memory_manager=AsyncMock(), compressor=AsyncMock(), event_bus=AsyncMock())
+        mgr = SessionManager(memory_manager=AsyncMock(), compressor=AsyncMock(), event_bus=AsyncMock())  # noqa: E501
         await mgr.on_message("default", "user1", "第一条")
         await mgr.on_message("default", "user1", "第二条")
         sessions = list(mgr._sessions.values())
@@ -190,7 +191,6 @@ class TestSessionManager:
     async def test_cleanup_expired(self):
         from src.session.session_manager import SessionManager
         mgr = SessionManager()
-        s = await mgr.create_session(user_id="user1")
         # Cleanup with very short timeout
         count = await mgr.cleanup_expired(max_idle_seconds=0)
         assert count >= 0

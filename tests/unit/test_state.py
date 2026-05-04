@@ -16,13 +16,10 @@
 """
 
 import json
-import os
 import sqlite3
-import time
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import patch
 
 import pytest
-
 
 # ──────────────────────────────────────────────
 # AgentState 枚举
@@ -68,68 +65,68 @@ class TestValidTransitions:
     """测试合法状态转换表"""
 
     def test_idle_transitions(self):
-        from src.loop.state import AgentState, VALID_TRANSITIONS
+        from src.loop.state import VALID_TRANSITIONS, AgentState
         assert VALID_TRANSITIONS[AgentState.IDLE] == {AgentState.PERCEIVING}
 
     def test_perceiving_transitions(self):
-        from src.loop.state import AgentState, VALID_TRANSITIONS
+        from src.loop.state import VALID_TRANSITIONS, AgentState
         assert VALID_TRANSITIONS[AgentState.PERCEIVING] == {
             AgentState.UNDERSTANDING, AgentState.FAILED
         }
 
     def test_understanding_transitions(self):
-        from src.loop.state import AgentState, VALID_TRANSITIONS
+        from src.loop.state import VALID_TRANSITIONS, AgentState
         assert VALID_TRANSITIONS[AgentState.UNDERSTANDING] == {
             AgentState.PLANNING, AgentState.CLARIFYING, AgentState.FAILED
         }
 
     def test_clarifying_transitions(self):
-        from src.loop.state import AgentState, VALID_TRANSITIONS
+        from src.loop.state import VALID_TRANSITIONS, AgentState
         assert VALID_TRANSITIONS[AgentState.CLARIFYING] == {
             AgentState.UNDERSTANDING, AgentState.FAILED
         }
 
     def test_planning_transitions(self):
-        from src.loop.state import AgentState, VALID_TRANSITIONS
+        from src.loop.state import VALID_TRANSITIONS, AgentState
         assert VALID_TRANSITIONS[AgentState.PLANNING] == {
             AgentState.EXECUTING, AgentState.WAITING_APPROVAL
         }
 
     def test_waiting_approval_transitions(self):
-        from src.loop.state import AgentState, VALID_TRANSITIONS
+        from src.loop.state import VALID_TRANSITIONS, AgentState
         assert VALID_TRANSITIONS[AgentState.WAITING_APPROVAL] == {
             AgentState.EXECUTING, AgentState.IDLE
         }
 
     def test_executing_transitions(self):
-        from src.loop.state import AgentState, VALID_TRANSITIONS
+        from src.loop.state import VALID_TRANSITIONS, AgentState
         assert VALID_TRANSITIONS[AgentState.EXECUTING] == {
             AgentState.OBSERVING, AgentState.FAILED
         }
 
     def test_observing_transitions(self):
-        from src.loop.state import AgentState, VALID_TRANSITIONS
+        from src.loop.state import VALID_TRANSITIONS, AgentState
         assert VALID_TRANSITIONS[AgentState.OBSERVING] == {
             AgentState.REFLECTING, AgentState.EXECUTING, AgentState.FAILED
         }
 
     def test_reflecting_transitions(self):
-        from src.loop.state import AgentState, VALID_TRANSITIONS
+        from src.loop.state import VALID_TRANSITIONS, AgentState
         assert VALID_TRANSITIONS[AgentState.REFLECTING] == {AgentState.REPLYING}
 
     def test_replying_transitions(self):
-        from src.loop.state import AgentState, VALID_TRANSITIONS
+        from src.loop.state import VALID_TRANSITIONS, AgentState
         assert VALID_TRANSITIONS[AgentState.REPLYING] == {AgentState.IDLE}
 
     def test_failed_transitions(self):
-        from src.loop.state import AgentState, VALID_TRANSITIONS
+        from src.loop.state import VALID_TRANSITIONS, AgentState
         assert VALID_TRANSITIONS[AgentState.FAILED] == {
             AgentState.IDLE, AgentState.REFLECTING
         }
 
     def test_all_states_have_transitions(self):
         """所有状态都应有转换规则"""
-        from src.loop.state import AgentState, VALID_TRANSITIONS
+        from src.loop.state import VALID_TRANSITIONS, AgentState
         for state in AgentState:
             assert state in VALID_TRANSITIONS, f"{state} 缺少转换规则"
 
@@ -164,7 +161,7 @@ class TestStateMachine:
         assert sm.state.name == "IDLE"
 
     def test_initial_state_custom(self):
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine(initial=AgentState.EXECUTING)
         assert sm.state == AgentState.EXECUTING
 
@@ -174,23 +171,23 @@ class TestStateMachine:
         assert sm.history == []
 
     def test_can_transition_to_valid(self):
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         assert sm.can_transition_to(AgentState.PERCEIVING) is True
 
     def test_can_transition_to_invalid(self):
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         assert sm.can_transition_to(AgentState.EXECUTING) is False
 
     def test_transition_to_valid_state(self):
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         assert sm.state == AgentState.PERCEIVING
 
     def test_transition_records_history(self):
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         assert len(sm.history) == 1
@@ -199,14 +196,14 @@ class TestStateMachine:
         assert to_state == "perceiving"
 
     def test_transition_invalid_raises(self):
-        from src.loop.state import StateMachine, AgentState, IllegalStateTransitionError
+        from src.loop.state import AgentState, IllegalStateTransitionError, StateMachine
         sm = StateMachine()
         with pytest.raises(IllegalStateTransitionError):
             sm.transition_to(AgentState.EXECUTING)
 
     def test_full_normal_flow(self):
-        """测试完整正常流程：IDLE → PERCEIVING → UNDERSTANDING → PLANNING → EXECUTING → OBSERVING → REFLECTING → REPLYING → IDLE"""
-        from src.loop.state import StateMachine, AgentState
+        """测试完整正常流程：IDLE → PERCEIVING → UNDERSTANDING → PLANNING → EXECUTING → OBSERVING → REFLECTING → REPLYING → IDLE"""  # noqa: E501
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         flow = [
             AgentState.PERCEIVING,
@@ -225,7 +222,7 @@ class TestStateMachine:
 
     def test_failure_and_recovery_flow(self):
         """测试失败恢复流程：PERCEIVING → FAILED → IDLE"""
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         sm.transition_to(AgentState.FAILED)
@@ -235,7 +232,7 @@ class TestStateMachine:
 
     def test_failure_to_reflecting_flow(self):
         """FAILED 也可以转到 REFLECTING"""
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         sm.transition_to(AgentState.FAILED)
@@ -244,7 +241,7 @@ class TestStateMachine:
 
     def test_clarifying_flow(self):
         """测试追问澄清流程：UNDERSTANDING → CLARIFYING → UNDERSTANDING"""
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         sm.transition_to(AgentState.UNDERSTANDING)
@@ -255,7 +252,7 @@ class TestStateMachine:
 
     def test_waiting_approval_flow(self):
         """测试审批流程：PLANNING → WAITING_APPROVAL → EXECUTING"""
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         sm.transition_to(AgentState.UNDERSTANDING)
@@ -267,7 +264,7 @@ class TestStateMachine:
 
     def test_waiting_approval_to_idle(self):
         """审批超时应回到 IDLE"""
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         sm.transition_to(AgentState.UNDERSTANDING)
@@ -278,7 +275,7 @@ class TestStateMachine:
 
     def test_observing_retry_flow(self):
         """OBSERVING 可以重试回 EXECUTING"""
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         sm.transition_to(AgentState.UNDERSTANDING)
@@ -290,7 +287,7 @@ class TestStateMachine:
 
     def test_reset(self):
         """测试重置功能"""
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         sm.transition_to(AgentState.UNDERSTANDING)
@@ -300,7 +297,7 @@ class TestStateMachine:
 
     def test_history_returns_copy(self):
         """history 属性应返回副本"""
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         history = sm.history
@@ -315,7 +312,7 @@ class TestStateMachine:
 
     def test_multiple_transitions_accumulate(self):
         """多次转换应累积历史"""
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         sm.transition_to(AgentState.UNDERSTANDING)
@@ -324,13 +321,13 @@ class TestStateMachine:
 
     def test_timeout_manager_accessible(self):
         """timeout_manager 属性应可访问"""
-        from src.loop.state import StateMachine, AdaptiveTimeoutManager
+        from src.loop.state import AdaptiveTimeoutManager, StateMachine
         sm = StateMachine()
         assert isinstance(sm.timeout_manager, AdaptiveTimeoutManager)
 
     def test_retry_policy_accessible(self):
         """retry_policy 属性应可访问"""
-        from src.loop.state import StateMachine, AdaptiveRetryPolicy
+        from src.loop.state import AdaptiveRetryPolicy, StateMachine
         sm = StateMachine()
         assert isinstance(sm.retry_policy, AdaptiveRetryPolicy)
 
@@ -648,7 +645,7 @@ class TestMessageQueue:
 
     def test_is_interruptible_executing(self):
         """EXECUTING 状态下只有 pause/cancel/interrupt 可中断"""
-        from src.loop.state import MessageQueue, StateMachine, AgentState
+        from src.loop.state import AgentState, MessageQueue, StateMachine
         sm = StateMachine()
         # IDLE → PERCEIVING → UNDERSTANDING → PLANNING → EXECUTING
         sm.transition_to(AgentState.PERCEIVING)
@@ -669,7 +666,7 @@ class TestMessageQueue:
 
     def test_is_interruptible_waiting_approval(self):
         """WAITING_APPROVAL 只有特定触发器可中断"""
-        from src.loop.state import MessageQueue, StateMachine, AgentState
+        from src.loop.state import AgentState, MessageQueue, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         sm.transition_to(AgentState.UNDERSTANDING)
@@ -683,7 +680,7 @@ class TestMessageQueue:
 
     def test_enqueue_interruptible_returns_true(self):
         """可中断消息入队应返回 True"""
-        from src.loop.state import MessageQueue, StateMachine, MessagePriority
+        from src.loop.state import MessagePriority, MessageQueue, StateMachine
         sm = StateMachine()
         mq = MessageQueue(sm)
         result = mq.enqueue("any_trigger", priority=MessagePriority.NORMAL)
@@ -691,7 +688,7 @@ class TestMessageQueue:
 
     def test_enqueue_non_interruptible_queues(self):
         """不可中断消息应入队"""
-        from src.loop.state import MessageQueue, StateMachine, AgentState, MessagePriority
+        from src.loop.state import AgentState, MessagePriority, MessageQueue, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         sm.transition_to(AgentState.UNDERSTANDING)
@@ -711,7 +708,7 @@ class TestMessageQueue:
 
     def test_process_queue_makes_progress(self):
         """队列处理应能处理可中断的消息"""
-        from src.loop.state import MessageQueue, StateMachine, AgentState, MessagePriority
+        from src.loop.state import AgentState, MessagePriority, MessageQueue, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         sm.transition_to(AgentState.UNDERSTANDING)
@@ -973,7 +970,7 @@ class TestStatePersistence:
 
     def test_init_creates_tables(self, db_path):
         from src.loop.state import StatePersistence
-        sp = StatePersistence(db_path=db_path)
+        StatePersistence(db_path=db_path)
         with sqlite3.connect(db_path) as conn:
             cursor = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'"
@@ -1109,7 +1106,7 @@ class TestEdgeCases:
 
     def test_state_machine_double_reset(self):
         """多次重置不应报错"""
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         sm.reset()
@@ -1118,7 +1115,7 @@ class TestEdgeCases:
 
     def test_state_machine_history_over_100(self):
         """历史超过100条时应裁剪"""
-        from src.loop.state import StateMachine, AgentState
+        from src.loop.state import AgentState, StateMachine
         sm = StateMachine()
         # 执行多次循环以累积历史
         for _ in range(50):
@@ -1171,7 +1168,7 @@ class TestEdgeCases:
 
     def test_message_queue_priority_ordering(self):
         """消息队列应按优先级排序"""
-        from src.loop.state import MessageQueue, StateMachine, AgentState, MessagePriority
+        from src.loop.state import AgentState, MessagePriority, MessageQueue, StateMachine
         sm = StateMachine()
         sm.transition_to(AgentState.PERCEIVING)
         sm.transition_to(AgentState.UNDERSTANDING)

@@ -4,14 +4,12 @@ V2 主循环集成测试
 覆盖：AgentLoop 构造、状态机初始化、V2模块注入、run()完整循环（mock各步骤）、
       参数验证、降级行为（无V2模块时仍可用）
 """
-import asyncio
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
 
 from src.loop.agent_loop import AgentLoop, LoopContext
 from src.loop.state import AgentState, StateMachine
-
 
 # ========== 构造与初始化测试 ==========
 

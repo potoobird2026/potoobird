@@ -2,9 +2,9 @@
 
 import tempfile
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 
 @pytest.fixture
@@ -17,7 +17,7 @@ class TestBackgroundTaskManager:
     def test_init_creates_directories(self, tmp_dir):
         """初始化创建数据目录"""
         from src.background.manager import BackgroundTaskManager
-        mgr = BackgroundTaskManager(data_dir=tmp_dir)
+        _ = BackgroundTaskManager(data_dir=tmp_dir)
         assert Path(tmp_dir).exists()
 
     def test_init_default_intervals(self, tmp_dir):
@@ -94,15 +94,17 @@ class TestBackgroundTaskManager:
 
     def test_should_run_no_file(self, tmp_dir):
         """从未运行过 → True"""
-        from src.background.manager import BackgroundTaskManager
         from datetime import timedelta
+
+        from src.background.manager import BackgroundTaskManager
         mgr = BackgroundTaskManager(data_dir=tmp_dir)
         assert mgr._should_run(Path(tmp_dir) / "none.txt", timedelta(hours=1)) is True
 
     def test_should_run_recent(self, tmp_dir):
         """刚运行过 → False"""
-        from src.background.manager import BackgroundTaskManager
         from datetime import timedelta
+
+        from src.background.manager import BackgroundTaskManager
         mgr = BackgroundTaskManager(data_dir=tmp_dir)
         p = Path(tmp_dir) / "recent.txt"
         mgr._write_timestamp(p)
@@ -110,8 +112,9 @@ class TestBackgroundTaskManager:
 
     def test_should_run_expired(self, tmp_dir):
         """超过间隔 → True"""
-        from src.background.manager import BackgroundTaskManager
         from datetime import datetime, timedelta
+
+        from src.background.manager import BackgroundTaskManager
         mgr = BackgroundTaskManager(data_dir=tmp_dir)
         p = Path(tmp_dir) / "old.txt"
         old = datetime.utcnow() - timedelta(hours=2)

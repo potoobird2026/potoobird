@@ -10,9 +10,10 @@ AgentLoop 补充测试 — 提升 src/loop/agent_loop.py 覆盖率
 - 状态机集成
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from src.loop.agent_loop import AgentLoop, LoopContext, _build_plan_from_intent
 from src.loop.state import AgentState
 
@@ -55,7 +56,7 @@ def mock_memory():
     )
     memory.load_memORIES_for_context = None
     memory.check_and_evict = None
-    memory.build_context = AsyncMock(return_value={"personality": {}, "hot_memories": [], "standards": []})
+    memory.build_context = AsyncMock(return_value={"personality": {}, "hot_memories": [], "standards": []})  # noqa: E501
     return memory
 
 
@@ -129,7 +130,6 @@ class TestLoopContext:
 
     def test_personality_state_defaults(self):
         """personality_state 应有默认值"""
-        from src.personality.algorithms import PersonalityState
         ctx = LoopContext()
         assert ctx.personality_state is not None
 
@@ -182,7 +182,7 @@ class TestAgentLoopInit:
 
     def test_custom_init(self):
         """自定义参数初始化"""
-        loop = AgentLoop(max_execute_retries=5, max_clarification_attempts=2, step_timeout_seconds=60)
+        loop = AgentLoop(max_execute_retries=5, max_clarification_attempts=2, step_timeout_seconds=60)  # noqa: E501
         assert loop.MAX_EXECUTE_RETRIES == 5
         assert loop.MAX_CLARIFICATION_ATTEMPTS == 2
         assert loop.STEP_TIMEOUT_SECONDS == 60

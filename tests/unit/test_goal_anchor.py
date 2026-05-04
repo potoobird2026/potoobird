@@ -4,7 +4,8 @@ GoalAnchor — 单元测试
 覆盖：动态阈值、偏离度向量、四级纠偏、PID控制器、相似度计算
 """
 import pytest
-from src.execution.goal_anchor import GoalAnchor, AnchorResult
+
+from src.execution.goal_anchor import AnchorResult, GoalAnchor
 
 
 class TestGoalAnchorThreshold:

@@ -1,7 +1,8 @@
 """交付层单元测试"""
 
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 
 class TestResultVerifier:
@@ -51,7 +52,11 @@ class TestResultVerifier:
 
     def test_calc_pass_rate(self):
         """计算通过率"""
-        from src.delivery.result_verifier import ResultVerifier, VerificationItem, VerificationStatus
+        from src.delivery.result_verifier import (
+            ResultVerifier,
+            VerificationItem,
+            VerificationStatus,
+        )
         v = ResultVerifier()
         items = [
             VerificationItem(status=VerificationStatus.PASSED),
@@ -69,7 +74,11 @@ class TestResultVerifier:
 
     def test_verification_report_pass_rate(self):
         """验证报告通过率"""
-        from src.delivery.result_verifier import VerificationReport, VerificationItem, VerificationStatus
+        from src.delivery.result_verifier import (
+            VerificationItem,
+            VerificationReport,
+            VerificationStatus,
+        )
         report = VerificationReport()
         assert report.pass_rate == 0.0
         report.items = [
@@ -101,7 +110,7 @@ class TestReportGenerator:
 class TestConfirmationManager:
     def test_init(self):
         """初始化"""
-        from src.delivery.report_generator import ConfirmationManager, ConfirmationStatus
+        from src.delivery.report_generator import ConfirmationManager
         mgr = ConfirmationManager()
         assert isinstance(mgr, ConfirmationManager)
         assert len(mgr._pending) == 0

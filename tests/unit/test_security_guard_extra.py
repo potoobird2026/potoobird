@@ -8,8 +8,6 @@ SecurityGuard 补充测试 — 提升 src/security/guard.py 覆盖率
 - SecurityGuard 边缘情况
 """
 
-import pytest
-from unittest.mock import MagicMock, patch
 
 
 class TestSecurityGuardEdgeCases:

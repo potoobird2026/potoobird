@@ -2,7 +2,6 @@
 测试 MemoryEvictor — 记忆淘汰引擎
 """
 
-import pytest
 from src.context.algorithms.logistic_growth import MemoryCapacityManager
 from src.memory.memory_evictor import EvictionResult, MemoryEvictor
 
@@ -81,7 +80,8 @@ class TestMemoryEvictor:
     def test_eviction_triggered_near_capacity(self):
         """接近容量时触发淘汰"""
         evictor = MemoryEvictor(alpha=1.5, threshold=0.85)
-        memories = [self._make_memory(f"记忆{i}", access_count=i, mem_id=f"m{i}") for i in range(100)]
+        memories = [self._make_memory(f"记忆{i}", access_count=i,  # noqa: E501
+                     mem_id=f"m{i}") for i in range(100)]
         # N=9500, K=10000 → eviction_score ≈ 0.927 > 0.85
         result = evictor.evict(memories, current_count=9500, capacity_k=10000)
         assert result.evicted_count > 0
@@ -89,7 +89,7 @@ class TestMemoryEvictor:
     def test_anchor_protected(self):
         """锚点记忆不被淘汰"""
         evictor = MemoryEvictor(alpha=1.5, threshold=0.85)
-        anchor = self._make_memory("项目叫 Potoobird", layer="personality", is_anchor=True, mem_id="anchor")
+        anchor = self._make_memory("项目叫 Potoobird", layer="personality", is_anchor=True, mem_id="anchor")  # noqa: E501
         normal = self._make_memory("普通记忆", access_count=0, mem_id="normal")
         memories = [anchor, normal]
         # 触发淘汰

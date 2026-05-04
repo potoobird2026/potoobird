@@ -15,15 +15,11 @@
 新功能文件夹结构：测试.py
 """
 
-import pytest
 from src.personality.algorithms import (
-    PersonalityState,
-    PersonalityFusionEngine,
-    PIDController,
-    KalmanFilter1D,
     FuzzyController,
+    PersonalityFusionEngine,
+    PersonalityState,
 )
-
 
 # ============================================================
 # 1. PersonalityState 基本操作

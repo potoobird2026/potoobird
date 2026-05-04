@@ -9,7 +9,6 @@ Skill 类型定义
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 
 class SkillType(str, Enum):

@@ -3,13 +3,12 @@ ModelRouter — 单元测试
 
 覆盖：模型注册/切换/状态查询、回退链、冷却机制、统计
 """
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.llm.model_router import ModelRouter, ModelConfig, RouterStats
-from src.errors.types import ErrorCode, LLMResult
+from src.errors.types import LLMResult
+from src.llm.model_router import ModelConfig, ModelRouter
 
 
 @pytest.fixture

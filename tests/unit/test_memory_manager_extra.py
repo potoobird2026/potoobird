@@ -12,11 +12,11 @@ MemoryManager 补充测试 — 提升 src/memory/manager.py 覆盖率
 
 import os
 import tempfile
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
 from src.audit.logger import AuditAction, AuditLogger
-from src.memory.manager import MemoryManager, PersonalitySchemaError
+from src.memory.manager import MemoryManager
 from src.memory.storage.sqlite_storage import SQLiteStorage
 
 

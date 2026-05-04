@@ -9,7 +9,8 @@
 """
 
 import pytest
-from src.security.guard import CredentialPool, CredentialEntry
+
+from src.security.guard import CredentialEntry, CredentialPool
 
 
 @pytest.fixture

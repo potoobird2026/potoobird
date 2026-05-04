@@ -11,9 +11,7 @@
 - LLM Provider 初始化失败降级路径
 """
 
-import asyncio
-import json
-from unittest.mock import AsyncMock, MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -78,12 +76,12 @@ class TestCreateAgent:
         mock_settings.openai_api_key = "sk-test-key"
         with patch("src.entry.cli.Settings", return_value=mock_settings), \
              patch("src.entry.cli.init_logging"), \
-             patch("src.llm.provider.OpenAIProvider") as MockProvider:
+             patch("src.llm.provider.OpenAIProvider") as mock_provider_cls:
             mock_provider = MagicMock()
-            MockProvider.return_value = mock_provider
+            mock_provider_cls.return_value = mock_provider
             from src.entry import cli
-            agent = cli.create_agent()
-            MockProvider.assert_called_once()
+            cli.create_agent()
+            mock_provider_cls.assert_called_once()
 
     def test_llm_init_failure_fallback(self, mock_settings, tmp_path):
         """LLM Provider 初始化失败时应降级为无 LLM 模式"""
@@ -239,7 +237,7 @@ class TestRunCommand:
 
     @patch("src.entry.cli.asyncio")
     @patch("src.entry.cli.typer")
-    def test_run_security_filter_rejects_input(self, mock_typer, mock_asyncio, mock_settings, tmp_path):
+    def test_run_security_filter_rejects_input(self, mock_typer, mock_asyncio, mock_settings, tmp_path):  # noqa: E501
         """安全过滤拒绝输入时应显示警告"""
         mock_loop = MagicMock()
         mock_asyncio.new_event_loop.return_value = mock_loop
@@ -297,7 +295,7 @@ class TestRunCommand:
 
     @patch("src.entry.cli.asyncio")
     @patch("src.entry.cli.typer")
-    def test_run_keyboard_interrupt_exits_gracefully(self, mock_typer, mock_asyncio, mock_settings, tmp_path):
+    def test_run_keyboard_interrupt_exits_gracefully(self, mock_typer, mock_asyncio, mock_settings, tmp_path):  # noqa: E501
         """KeyboardInterrupt 应优雅退出"""
         mock_asyncio.new_event_loop.return_value = MagicMock()
         mock_asyncio.set_event_loop = MagicMock()

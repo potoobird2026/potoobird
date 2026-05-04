@@ -8,8 +8,8 @@ SecurityGuard 审批模块和冲突检测器补充测试
 - ApprovalRequest 数据类
 """
 
-import asyncio
 import pytest
+
 from src.security.guard import (
     ApprovalModule,
     ApprovalRequest,
@@ -187,7 +187,6 @@ class TestApprovalRequest:
             action="test",
             params={"key": "value"},
             risk_score=0.5,
-            status=ApprovalStatus.APPROVED,
         )
         assert req.action == "test"
         assert req.risk_score == 0.5

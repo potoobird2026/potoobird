@@ -2,19 +2,20 @@
 BSupervisor 单元测试
 覆盖：正常执行流、步骤失败、目标锚定偏离、超限拒绝、空步骤、快照清理
 """
-import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from src.execution.b_supervisor import (
-    BSupervisor, ExecutionResult, ExecutionStatus,
-    TaskStep, StepStatus,
+    BSupervisor,
+    ExecutionStatus,
+    StepStatus,
+    TaskStep,
 )
-from src.execution.goal_anchor import GoalAnchor, AnchorResult
+from src.execution.goal_anchor import AnchorResult, GoalAnchor
 from src.execution.snapshot_manager import SnapshotManager
 from src.execution.tool_registry import ToolRegistry
-
 
 # ========== Fixtures ==========
 
@@ -89,12 +90,12 @@ def supervisor(mock_goal_anchor, mock_snapshot_manager, mock_tool_registry):
 # ========== 基础属性测试 ==========
 
 class TestBSupervisorInit:
-    def test_init_stores_deps(self, supervisor, mock_goal_anchor, mock_snapshot_manager, mock_tool_registry):
+    def test_init_stores_deps(self, supervisor, mock_goal_anchor, mock_snapshot_manager, mock_tool_registry):  # noqa: E501
         assert supervisor.goal_anchor is mock_goal_anchor
         assert supervisor.snapshot_manager is mock_snapshot_manager
         assert supervisor.tool_registry is mock_tool_registry
 
-    def test_init_max_steps_none_allows_dynamic(self, mock_goal_anchor, mock_snapshot_manager, mock_tool_registry):
+    def test_init_max_steps_none_allows_dynamic(self, mock_goal_anchor, mock_snapshot_manager, mock_tool_registry):  # noqa: E501
         s = BSupervisor(mock_goal_anchor, mock_snapshot_manager, mock_tool_registry)
         assert s.max_steps is None
 
@@ -151,7 +152,7 @@ class TestExecuteNormalFlow:
         assert "步骤 2" in result.output
 
     @pytest.mark.asyncio
-    async def test_execute_saves_snapshots(self, supervisor, mock_snapshot_manager, mock_tool_registry):
+    async def test_execute_saves_snapshots(self, supervisor, mock_snapshot_manager, mock_tool_registry):  # noqa: E501
         mock_tool_registry.execute = AsyncMock(
             return_value=make_tool_result(success=True)
         )
@@ -162,11 +163,11 @@ class TestExecuteNormalFlow:
         assert mock_snapshot_manager.save_snapshot.call_count == 3
 
     @pytest.mark.asyncio
-    async def test_execute_deletes_snapshots_on_completion(self, supervisor, mock_snapshot_manager, mock_tool_registry):
+    async def test_execute_deletes_snapshots_on_completion(self, supervisor, mock_snapshot_manager, mock_tool_registry):  # noqa: E501
         mock_tool_registry.execute = AsyncMock(
             return_value=make_tool_result(success=True)
         )
-        await supervisor.execute(make_intent_target(), make_plan(estimated_steps=1, deliverable_description="d"))
+        await supervisor.execute(make_intent_target(), make_plan(estimated_steps=1, deliverable_description="d"))  # noqa: E501
         mock_snapshot_manager.delete_task_snapshots.assert_called_once()
 
     @pytest.mark.asyncio
@@ -247,7 +248,7 @@ class TestExecuteFailurePaths:
 
 class TestGoalAnchorIntegration:
     @pytest.mark.asyncio
-    async def test_anchor_stop_aborts_execution(self, supervisor, mock_goal_anchor, mock_tool_registry):
+    async def test_anchor_stop_aborts_execution(self, supervisor, mock_goal_anchor, mock_tool_registry):  # noqa: E501
         mock_goal_anchor.check.return_value = AnchorResult(
             action="stop", suggestion="目标偏离太远",
         )
@@ -261,7 +262,7 @@ class TestGoalAnchorIntegration:
         assert "严重偏离目标" in result.error
 
     @pytest.mark.asyncio
-    async def test_anchor_ask_user_warns_but_continues(self, supervisor, mock_goal_anchor, mock_tool_registry):
+    async def test_anchor_ask_user_warns_but_continues(self, supervisor, mock_goal_anchor, mock_tool_registry):  # noqa: E501
         mock_goal_anchor.check.return_value = AnchorResult(
             action="ask_user", suggestion="可能需要调整方向",
         )
@@ -284,7 +285,7 @@ class TestStepCallback:
             return_value=make_tool_result(success=True)
         )
         callback = AsyncMock()
-        steps = await supervisor.execute(
+        await supervisor.execute(
             make_intent_target(),
             make_plan(estimated_steps=3, deliverable_description="d"),
             step_callback=callback,
@@ -308,6 +309,7 @@ class TestAssembleOutput:
         assert "s2" not in output
 
     def test_assemble_format(self, supervisor):
-        s = TaskStep(index=0, description="实现登录", status=StepStatus.COMPLETED, result="代码已写入")
+        s = TaskStep(index=0, description="实现登录",  # noqa: E501
+                     status=StepStatus.COMPLETED, result="代码已写入")
         output = supervisor._assemble_output([s])
         assert "[步骤 1] 实现登录" in output

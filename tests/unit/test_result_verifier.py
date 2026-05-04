@@ -2,16 +2,18 @@
 ResultVerifier 单元测试
 覆盖：三级验证、风险自适应阈值、空验收标准、L1通过率过低短路、证据链构建
 """
-import asyncio
-import pytest
-from unittest.mock import MagicMock
 from datetime import datetime
+from unittest.mock import MagicMock
+
+import pytest
 
 from src.delivery.result_verifier import (
-    ResultVerifier, VerificationReport, VerificationItem,
-    VerificationLevel, VerificationStatus,
+    ResultVerifier,
+    VerificationItem,
+    VerificationLevel,
+    VerificationReport,
+    VerificationStatus,
 )
-
 
 # ========== Helpers ==========
 

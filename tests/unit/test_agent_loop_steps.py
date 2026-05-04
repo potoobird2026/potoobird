@@ -4,10 +4,9 @@ AgentLoop 步骤方法单元测试
 覆盖 _step_perceive / _step_execute / _step_observe / _step_reply
 每个测试将状态机预设到正确的前置状态，避免非法转换。
 """
-import asyncio
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-from datetime import datetime
 
 from src.loop.agent_loop import AgentLoop, LoopContext, _build_plan_from_intent
 from src.loop.state import AgentState
@@ -470,7 +469,7 @@ class TestStepReply:
     @pytest.mark.asyncio
     async def test_sets_replying_then_idle(self):
         loop = AgentLoop()
-        set_state(loop, AgentState.OBSERVING)  # OBSERVING → REFLECTING → REPLYING，但reply直接从OBSERVING转
+        set_state(loop, AgentState.OBSERVING)  # OBSERVING → REFLECTING → REPLYING，但reply直接从OBSERVING转  # noqa: E501
         ctx = make_ctx()
         ctx.execution_result = "最终结果"
         await loop._step_reply(ctx)

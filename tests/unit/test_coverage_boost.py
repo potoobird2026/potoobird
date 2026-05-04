@@ -11,13 +11,13 @@
 import json
 import os
 import tempfile
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
 from src.errors.types import LLMResult
 from src.loop.agent_loop import AgentLoop, LoopContext
 from src.understanding.engine import ClarificationResult, Intent, UnderstandingEngine
-
 
 # ============================================================
 # UnderstandingEngine 补充测试
@@ -90,7 +90,7 @@ class TestAnalyzePersonalityFeedback:
 
     def test_analyze_no_llm_returns_empty(self):
         """无 LLM 时返回空调整"""
-        engine = UnderstandingEngine(llm_provider=None)
+        _ = UnderstandingEngine(llm_provider=None)  # noqa: F841
         # 没有LLM时，analyze_personality_feedback 同步调用会报错
         # 实际上是异步方法，这里验证同步调用无法直接使用
         assert True
@@ -173,8 +173,8 @@ class TestMemoryManagerReadOnly:
         """只读模式下写入被拒绝"""
         with tempfile.TemporaryDirectory() as tmp_dir:
             db = os.path.join(tmp_dir, "test.db")
-            from src.memory.storage.sqlite_storage import SQLiteStorage
             from src.audit.logger import AuditLogger
+            from src.memory.storage.sqlite_storage import SQLiteStorage
             storage = SQLiteStorage(db)
             audit = AuditLogger(os.path.join(tmp_dir, "audit.jsonl"))
             from src.memory.manager import MemoryManager
@@ -189,8 +189,8 @@ class TestMemoryManagerReadOnly:
         """只读模式写入审计"""
         with tempfile.TemporaryDirectory() as tmp_dir:
             db = os.path.join(tmp_dir, "test.db")
+            from src.audit.logger import AuditAction, AuditLogger
             from src.memory.storage.sqlite_storage import SQLiteStorage
-            from src.audit.logger import AuditLogger, AuditAction
             storage = SQLiteStorage(db)
             audit = AuditLogger(os.path.join(tmp_dir, "audit.jsonl"))
             from src.memory.manager import MemoryManager
@@ -209,8 +209,8 @@ class TestMemoryManagerConflictDetection:
         """无现有记忆时无冲突"""
         with tempfile.TemporaryDirectory() as tmp_dir:
             db = os.path.join(tmp_dir, "test.db")
-            from src.memory.storage.sqlite_storage import SQLiteStorage
             from src.audit.logger import AuditLogger
+            from src.memory.storage.sqlite_storage import SQLiteStorage
             storage = SQLiteStorage(db)
             audit = AuditLogger(os.path.join(tmp_dir, "audit.jsonl"))
             from src.memory.manager import MemoryManager
@@ -225,8 +225,8 @@ class TestMemoryManagerConflictDetection:
         """检测矛盾记忆"""
         with tempfile.TemporaryDirectory() as tmp_dir:
             db = os.path.join(tmp_dir, "test.db")
-            from src.memory.storage.sqlite_storage import SQLiteStorage
             from src.audit.logger import AuditLogger
+            from src.memory.storage.sqlite_storage import SQLiteStorage
             storage = SQLiteStorage(db)
             audit = AuditLogger(os.path.join(tmp_dir, "audit.jsonl"))
             from src.memory.manager import MemoryManager
@@ -240,8 +240,8 @@ class TestMemoryManagerConflictDetection:
         """相同文本同一主题"""
         with tempfile.TemporaryDirectory() as tmp_dir:
             db = os.path.join(tmp_dir, "test.db")
-            from src.memory.storage.sqlite_storage import SQLiteStorage
             from src.audit.logger import AuditLogger
+            from src.memory.storage.sqlite_storage import SQLiteStorage
             storage = SQLiteStorage(db)
             audit = AuditLogger(os.path.join(tmp_dir, "audit.jsonl"))
             from src.memory.manager import MemoryManager
@@ -254,8 +254,8 @@ class TestMemoryManagerConflictDetection:
         """不同文本不同主题"""
         with tempfile.TemporaryDirectory() as tmp_dir:
             db = os.path.join(tmp_dir, "test.db")
-            from src.memory.storage.sqlite_storage import SQLiteStorage
             from src.audit.logger import AuditLogger
+            from src.memory.storage.sqlite_storage import SQLiteStorage
             storage = SQLiteStorage(db)
             audit = AuditLogger(os.path.join(tmp_dir, "audit.jsonl"))
             from src.memory.manager import MemoryManager
@@ -268,8 +268,8 @@ class TestMemoryManagerConflictDetection:
         """部分重叠"""
         with tempfile.TemporaryDirectory() as tmp_dir:
             db = os.path.join(tmp_dir, "test.db")
-            from src.memory.storage.sqlite_storage import SQLiteStorage
             from src.audit.logger import AuditLogger
+            from src.memory.storage.sqlite_storage import SQLiteStorage
             storage = SQLiteStorage(db)
             audit = AuditLogger(os.path.join(tmp_dir, "audit.jsonl"))
             from src.memory.manager import MemoryManager
@@ -287,8 +287,8 @@ class TestMemoryManagerSearch:
         """记住后搜索"""
         with tempfile.TemporaryDirectory() as tmp_dir:
             db = os.path.join(tmp_dir, "test.db")
-            from src.memory.storage.sqlite_storage import SQLiteStorage
             from src.audit.logger import AuditLogger
+            from src.memory.storage.sqlite_storage import SQLiteStorage
             storage = SQLiteStorage(db)
             audit = AuditLogger(os.path.join(tmp_dir, "audit.jsonl"))
             from src.memory.manager import MemoryManager
@@ -303,8 +303,8 @@ class TestMemoryManagerSearch:
         """不同层搜索"""
         with tempfile.TemporaryDirectory() as tmp_dir:
             db = os.path.join(tmp_dir, "test.db")
-            from src.memory.storage.sqlite_storage import SQLiteStorage
             from src.audit.logger import AuditLogger
+            from src.memory.storage.sqlite_storage import SQLiteStorage
             storage = SQLiteStorage(db)
             audit = AuditLogger(os.path.join(tmp_dir, "audit.jsonl"))
             from src.memory.manager import MemoryManager
@@ -382,7 +382,7 @@ def mock_memory():
     )
     memory.load_memORIES_for_context = None
     memory.check_and_evict = None
-    memory.build_context = AsyncMock(return_value={"personality": {}, "hot_memories": [], "standards": []})
+    memory.build_context = AsyncMock(return_value={"personality": {}, "hot_memories": [], "standards": []})  # noqa: E501
     return memory
 
 

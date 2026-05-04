@@ -173,7 +173,8 @@ class TestScoreMemory:
 
     def test_score_has_all_algorithms(self, compressor):
         """score_memory 返回所有10个算法的评分"""
-        msg = {"role": "user", "content": "测试消息", "created_at": datetime.utcnow().isoformat() + "Z"}
+        msg = {"role": "user", "content": "测试消息",  # noqa: E501
+              "created_at": datetime.utcnow().isoformat() + "Z"}
         result = compressor.score_memory(msg, current_input="测试")
         expected_keys = [
             "forgetting", "access_frequency", "recency", "relevance",
@@ -186,7 +187,7 @@ class TestScoreMemory:
     def test_recent_message_scores_higher(self, compressor):
         """最近消息评分高于陈旧消息"""
         now = datetime.utcnow()
-        old_msg = {"role": "user", "content": "旧消息", "created_at": (now - timedelta(hours=100)).isoformat() + "Z"}
+        old_msg = {"role": "user", "content": "旧消息", "created_at": (now - timedelta(hours=100)).isoformat() + "Z"}  # noqa: E501
         new_msg = {"role": "user", "content": "新消息", "created_at": now.isoformat() + "Z"}
         old_score = compressor.score_memory(old_msg, current_input="新消息")["final_score"]
         new_score = compressor.score_memory(new_msg, current_input="新消息")["final_score"]

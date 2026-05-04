@@ -3,8 +3,6 @@ EventBus — 单元测试
 
 覆盖：订阅/取消订阅、发布（同步+异步handler）、统计、事件类型
 """
-import asyncio
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -18,7 +16,7 @@ def bus():
 
 class TestEventBusSubscribe:
     def test_subscribe(self, bus):
-        handler = lambda data: None
+        def handler(data): return None
         bus.subscribe("test.event", handler)
         assert "test.event" in bus.event_types
 
@@ -35,8 +33,8 @@ class TestEventBusSubscribe:
 
 class TestEventBusUnsubscribe:
     def test_unsubscribe(self, bus):
-        h1 = lambda d: None
-        h2 = lambda d: None
+        def h1(d): return None
+        def h2(d): return None
         bus.subscribe("test.event", h1)
         bus.subscribe("test.event", h2)
         bus.unsubscribe("test.event", h1)
@@ -71,7 +69,7 @@ class TestEventBusPublish:
     @pytest.mark.asyncio
     async def test_publish_multiple_handlers(self, bus):
         count = 0
-        def h1(d): 
+        def h1(d):
             nonlocal count
             count += 1
         def h2(d):

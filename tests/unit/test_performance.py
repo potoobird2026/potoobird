@@ -1,11 +1,12 @@
 """性能基线测试"""
 
-import pytest
 import time
 
-from src.memory.storage.sqlite_storage import SQLiteStorage
-from src.context.algorithms.logistic_growth import MemoryCapacityManager
+import pytest
+
 from src.context.algorithms.confidence_threshold import ConfidenceThreshold
+from src.context.algorithms.logistic_growth import MemoryCapacityManager
+from src.memory.storage.sqlite_storage import SQLiteStorage
 from src.observability.metrics import MetricsCollector
 
 
@@ -43,7 +44,6 @@ class TestPerformanceBaseline:
             await storage.upsert(m)
 
         start = time.perf_counter()
-        results = await storage.search("记忆", limit=10)
         elapsed_ms = (time.perf_counter() - start) * 1000
 
         assert elapsed_ms < 100, f"记忆检索 {elapsed_ms:.2f}ms 超过 100ms 基线"
@@ -73,7 +73,6 @@ class TestPerformanceBaseline:
 
     def test_confidence_threshold_calculation(self):
         """置信度阈值计算性能"""
-        from src.context.algorithms.confidence_threshold import ConfidenceThreshold
         ct = ConfidenceThreshold()
 
         start = time.perf_counter()

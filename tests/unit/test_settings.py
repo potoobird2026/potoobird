@@ -9,8 +9,7 @@
 """
 
 import os
-import tempfile
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
@@ -20,7 +19,7 @@ class TestFernetEncryption:
 
     def test_encrypt_decrypt_roundtrip(self, tmp_path):
         """加密后解密得到原值"""
-        from src.config.settings import _get_or_create_key, _encrypt, _decrypt
+        from src.config.settings import _decrypt, _encrypt, _get_or_create_key
 
         key_file = str(tmp_path / "data" / ".fernet_key")
         key = _get_or_create_key(key_file)
@@ -35,7 +34,7 @@ class TestFernetEncryption:
 
     def test_encrypt_empty_string(self):
         """空字符串加密返回空"""
-        from src.config.settings import _encrypt, _decrypt
+        from src.config.settings import _decrypt, _encrypt
         assert _encrypt("") == ""
         assert _decrypt("") == ""
 
@@ -112,6 +111,7 @@ class TestSettingsValidation:
     def test_llm_timeout_range(self):
         """llm_timeout 必须在 5-120 之间"""
         from pydantic import ValidationError
+
         from src.config.settings import Settings
 
         with patch.dict(os.environ, {"LONG_AGENT_LLM_TIMEOUT": "200"}, clear=True):
@@ -121,6 +121,7 @@ class TestSettingsValidation:
     def test_backup_keep_range(self):
         """backup_keep 必须在 1-10 之间"""
         from pydantic import ValidationError
+
         from src.config.settings import Settings
 
         with patch.dict(os.environ, {"LONG_AGENT_BACKUP_KEEP": "20"}, clear=True):

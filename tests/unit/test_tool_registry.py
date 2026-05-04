@@ -3,12 +3,9 @@ ToolRegistry — 单元测试
 
 覆盖：工具注册/执行/列表、三级沙箱、ToolResult
 """
-import asyncio
 import pytest
 
-from src.execution.tool_registry import (
-    ToolRegistry, ToolDefinition, ToolResult, ToolLevel
-)
+from src.execution.tool_registry import ToolLevel, ToolRegistry, ToolResult
 
 
 @pytest.fixture

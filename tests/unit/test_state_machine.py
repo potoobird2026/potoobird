@@ -11,11 +11,12 @@
 """
 
 import pytest
+
 from src.loop.state import (
-    AgentState,
-    StateMachine,
-    IllegalStateTransitionError,
     VALID_TRANSITIONS,
+    AgentState,
+    IllegalStateTransitionError,
+    StateMachine,
 )
 
 

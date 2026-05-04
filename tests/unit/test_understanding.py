@@ -2,6 +2,8 @@
 单元测试 — UnderstandingEngine
 """
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 
 from src.understanding.engine import Intent, UnderstandingEngine
@@ -95,16 +97,15 @@ async def test_parse_vague_fallback(engine):
 # ---- generate_clarification ----
 
 
-from unittest.mock import AsyncMock, MagicMock
-
 @pytest.mark.asyncio
 async def test_clarification_question(engine):
     # mock LLM 返回
     fake_llm = AsyncMock()
-    fake_llm.chat = AsyncMock(return_value=MagicMock(
-        is_ok=True,
-        content='{"question": "你想做什么？请具体说明。", "strategy": "open"}'
-    ))
+    fake_llm.chat = AsyncMock(
+        return_value=MagicMock(
+            is_ok=True, content='{"question": "你想做什么？请具体说明。", "strategy": "open"}'
+        )
+    )
     engine._llm = fake_llm
     intent = Intent(type="unknown", content="模糊", confidence=0.2)
     result = await engine.generate_clarification("模糊", intent, attempt=1)
@@ -115,10 +116,9 @@ async def test_clarification_question(engine):
 @pytest.mark.asyncio
 async def test_clarification_increments_attempts(engine):
     fake_llm = AsyncMock()
-    fake_llm.chat = AsyncMock(return_value=MagicMock(
-        is_ok=True,
-        content='{"question": "请详细说说", "strategy": "open"}'
-    ))
+    fake_llm.chat = AsyncMock(
+        return_value=MagicMock(is_ok=True, content='{"question": "请详细说说", "strategy": "open"}')
+    )
     engine._llm = fake_llm
     intent = Intent(type="unknown", content="还是模糊", confidence=0.3)
     r1 = await engine.generate_clarification("模糊1", intent, attempt=1)
@@ -130,10 +130,11 @@ async def test_clarification_increments_attempts(engine):
 @pytest.mark.asyncio
 async def test_clarification_max_attempts(engine):
     fake_llm = AsyncMock()
-    fake_llm.chat = AsyncMock(return_value=MagicMock(
-        is_ok=True,
-        content='{"question": "请描述具体需求", "strategy": "confirm"}'
-    ))
+    fake_llm.chat = AsyncMock(
+        return_value=MagicMock(
+            is_ok=True, content='{"question": "请描述具体需求", "strategy": "confirm"}'
+        )
+    )
     engine._llm = fake_llm
     intent = Intent(type="unknown", content="持续模糊", confidence=0.1)
     result = await engine.generate_clarification("模糊", intent, attempt=3)
