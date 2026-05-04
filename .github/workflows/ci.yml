@@ -42,6 +42,11 @@ jobs:
           pip install pip-audit
           pip-audit --strict || true
 
+      - name: Check dependencies for vulnerabilities
+        run: |
+          pip install pip-audit
+          pip-audit --strict || true
+
       - name: Run tests
         run: pytest tests/ -v --tb=short --cov=src/ --cov-report=term-missing
 

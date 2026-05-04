@@ -508,12 +508,14 @@ class McpClientManager:
         with self._get_conn() as conn:
             if server_id:
                 rows = conn.execute(
-                    "SELECT server_id, tool_name, description, input_schema FROM mcp_tools_cache WHERE server_id=?",
+                    "SELECT server_id, tool_name, description, input_schema "
+                    "FROM mcp_tools_cache WHERE server_id=?",
                     (server_id,),
                 ).fetchall()
             else:
                 rows = conn.execute(
-                    "SELECT server_id, tool_name, description, input_schema FROM mcp_tools_cache"
+                    "SELECT server_id, tool_name, description, input_schema "
+                    "FROM mcp_tools_cache"
                 ).fetchall()
             for row in rows:
                 tools.append(
