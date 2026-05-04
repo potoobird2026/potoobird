@@ -25,16 +25,25 @@
         <div class="sidebar-section">
             <h3>🗂️ Skill</h3>
             <div id="skill-panel">加载中...</div>
+            <div id="skill-add-form" style="display:none; margin-top:8px;">
+                <input id="skill-path" placeholder="Skill 目录路径" style="width:100%;margin-bottom:4px;padding:4px;">
+                <button onclick="installSkill()" style="width:100%;padding:4px;">安装</button>
+            </div>
+            <button onclick="toggleSkillForm()" style="margin-top:4px;width:100%;padding:4px;">+ 安装 Skill</button>
         </div>
         <div class="sidebar-section">
-            <h3>🔗 MCP 连接</h3>
+            <h3>🔗 MCP</h3>
             <div id="mcp-panel">加载中...</div>
             <div id="mcp-add-form" style="display:none; margin-top:8px;">
                 <input id="mcp-name" placeholder="名称" style="width:100%;margin-bottom:4px;padding:4px;">
                 <input id="mcp-url" placeholder="http://localhost:9090/mcp" style="width:100%;margin-bottom:4px;padding:4px;">
+                <select id="mcp-transport" style="width:100%;margin-bottom:4px;padding:4px;">
+                    <option value="http">HTTP</option>
+                    <option value="stdio">stdio</option>
+                </select>
                 <button onclick="addMCPServer()" style="width:100%;padding:4px;">连接</button>
             </div>
-            <button onclick="toggleMCPForm()" style="margin-top:4px;width:100%;padding:4px;">+ 添加服务器</button>
+            <button onclick="toggleMCPForm()" style="margin-top:4px;width:100%;padding:4px;">+ 添加 MCP 服务器</button>
         </div>
     </aside>
 

@@ -95,22 +95,46 @@ async def test_parse_vague_fallback(engine):
 # ---- generate_clarification ----
 
 
-def test_clarification_question(engine):
+from unittest.mock import AsyncMock, MagicMock
+
+@pytest.mark.asyncio
+async def test_clarification_question(engine):
+    # mock LLM 返回
+    fake_llm = AsyncMock()
+    fake_llm.chat = AsyncMock(return_value=MagicMock(
+        is_ok=True,
+        content='{"question": "你想做什么？请具体说明。", "strategy": "open"}'
+    ))
+    engine._llm = fake_llm
     intent = Intent(type="unknown", content="模糊", confidence=0.2)
-    result = engine.generate_clarification("模糊", intent, attempt=1)
+    result = await engine.generate_clarification("模糊", intent, attempt=1)
     assert len(result.question) > 0
     assert result.attempts == 1
 
 
-def test_clarification_increments_attempts(engine):
+@pytest.mark.asyncio
+async def test_clarification_increments_attempts(engine):
+    fake_llm = AsyncMock()
+    fake_llm.chat = AsyncMock(return_value=MagicMock(
+        is_ok=True,
+        content='{"question": "请详细说说", "strategy": "open"}'
+    ))
+    engine._llm = fake_llm
     intent = Intent(type="unknown", content="还是模糊", confidence=0.3)
-    r1 = engine.generate_clarification("模糊1", intent, attempt=1)
-    r2 = engine.generate_clarification("模糊2", intent, attempt=2)
+    r1 = await engine.generate_clarification("模糊1", intent, attempt=1)
+    r2 = await engine.generate_clarification("模糊2", intent, attempt=2)
     assert r1.attempts == 1
     assert r2.attempts == 2
 
 
-def test_clarification_max_attempts(engine):
+@pytest.mark.asyncio
+async def test_clarification_max_attempts(engine):
+    fake_llm = AsyncMock()
+    fake_llm.chat = AsyncMock(return_value=MagicMock(
+        is_ok=True,
+        content='{"question": "请描述具体需求", "strategy": "confirm"}'
+    ))
+    engine._llm = fake_llm
     intent = Intent(type="unknown", content="持续模糊", confidence=0.1)
-    result = engine.generate_clarification("模糊", intent, attempt=3)
+    result = await engine.generate_clarification("模糊", intent, attempt=3)
     assert result.attempts == 3

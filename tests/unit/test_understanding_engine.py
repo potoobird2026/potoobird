@@ -124,17 +124,33 @@ class TestShouldCallLlm:
 class TestClarification:
     """测试追问生成"""
 
-    def test_generate_clarification(self, engine_no_llm):
+    @pytest.mark.asyncio
+    async def test_generate_clarification(self, engine_no_llm):
+        # mock LLM
+        from unittest.mock import AsyncMock, MagicMock
+        fake_llm = AsyncMock()
+        fake_llm.chat = AsyncMock(return_value=MagicMock(
+            is_ok=True,
+            content='{"question": "你想做什么？", "strategy": "open"}'
+        ))
+        engine_no_llm._llm = fake_llm
         intent = Intent(type="llm_chat", confidence=0.2)
-        result = engine_no_llm.generate_clarification("模糊输入", intent, attempt=1)
+        result = await engine_no_llm.generate_clarification("模糊输入", intent, attempt=1)
         assert isinstance(result, ClarificationResult)
         assert len(result.question) > 0
         assert result.attempts == 1
 
-    def test_clarification_max_attempts(self, engine_no_llm):
+    @pytest.mark.asyncio
+    async def test_clarification_max_attempts(self, engine_no_llm):
+        from unittest.mock import AsyncMock, MagicMock
+        fake_llm = AsyncMock()
+        fake_llm.chat = AsyncMock(return_value=MagicMock(
+            is_ok=True,
+            content='{"question": "请详细描述", "strategy": "open"}'
+        ))
+        engine_no_llm._llm = fake_llm
         intent = Intent(type="llm_chat", confidence=0.2)
-        result = engine_no_llm.generate_clarification("模糊输入", intent, attempt=5)
-        # 超过最大次数时使用最后一个模板
+        result = await engine_no_llm.generate_clarification("模糊输入", intent, attempt=5)
         assert result.attempts == 5
 
 

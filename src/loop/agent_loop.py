@@ -632,7 +632,7 @@ class AgentLoop:
         理解阶段：
         1. 意图解析（UnderstandingEngine.parse）
         2. 置信度评估
-        3. 置信度 < 阈值 → 追问
+        3. 置信度 < 阈值 → 追问（有 LLM 时调用 generate_clarification_by_llm）
         """
         logger.debug(f"[{ctx.loop_id}] ② 理解阶段")
 
@@ -643,6 +643,15 @@ class AgentLoop:
                 ctx.clarification_question = getattr(ctx.intent, "clarification_question", "")
 
                 if ctx.needs_clarification:
+                    # 有 LLM 时调用 generate_clarification_by_llm 动态生成追问
+                    if self.understanding.has_llm:
+                        try:
+                            clar_result = await self.understanding.generate_clarification_by_llm(
+                                ctx.filtered_input, ctx.intent, attempt=1
+                            )
+                            ctx.clarification_question = clar_result.question
+                        except RuntimeError as e:
+                            logger.warning(f"LLM 追问生成失败: {e}")
                     logger.info(f"[{ctx.loop_id}] 需要追问: {ctx.clarification_question}")
                     return
 

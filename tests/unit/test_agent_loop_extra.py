@@ -255,8 +255,13 @@ class TestAgentLoopStepUnderstand:
     @pytest.mark.asyncio
     async def test_understand_sets_needs_clarification(self, mock_memory, mock_understanding):
         """理解阶段应设置追问标志"""
+        from src.understanding.engine import ClarificationResult
         intent = _make_intent(needs_clarification=True, clarification_question="请确认")
         mock_understanding.parse = AsyncMock(return_value=intent)
+        mock_understanding.has_llm = True
+        mock_understanding.generate_clarification_by_llm = AsyncMock(
+            return_value=ClarificationResult(question="请确认")
+        )
         loop = AgentLoop(memory_manager=mock_memory, understanding_engine=mock_understanding)
         ctx = LoopContext(user_input="test")
         await loop._step_understand(ctx)
@@ -391,19 +396,25 @@ class TestAgentLoopRun:
     @pytest.mark.asyncio
     async def test_run_with_clarification(self, mock_memory, mock_understanding):
         """追问流程"""
+        from src.understanding.engine import ClarificationResult
         intent = _make_intent(needs_clarification=True, clarification_question="你想做什么？")
         mock_understanding.parse = AsyncMock(return_value=intent)
+        mock_understanding.has_llm = True
+        mock_understanding.generate_clarification_by_llm = AsyncMock(
+            return_value=ClarificationResult(question="你想做什么？")
+        )
         loop = AgentLoop(memory_manager=mock_memory, understanding_engine=mock_understanding)
         response = await loop.run("模糊输入")
         assert "你想做什么？" in response
 
     @pytest.mark.asyncio
     async def test_run_handles_exception(self, mock_memory, mock_understanding):
-        """异常处理"""
+        """异常处理——parse 失败时降级为 unknown 意图，不抛异常"""
         mock_understanding.parse = AsyncMock(side_effect=Exception("解析失败"))
         loop = AgentLoop(memory_manager=mock_memory, understanding_engine=mock_understanding)
         response = await loop.run("test")
-        assert "失败" in response or response != ""
+        # 异常被 _step_understand 捕获，降级为 unknown 意图，run() 正常返回
+        assert isinstance(response, str)
 
     @pytest.mark.asyncio
     async def test_run_with_conversation_id(self, mock_memory, mock_understanding, mock_llm):

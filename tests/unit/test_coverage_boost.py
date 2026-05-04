@@ -24,77 +24,65 @@ from src.understanding.engine import ClarificationResult, Intent, UnderstandingE
 # ============================================================
 
 class TestGenerateClarification:
-    """测试追问生成"""
+    """测试追问生成（LLM-only：无 LLM 时抛 RuntimeError）"""
 
-    def test_generate_clarification_no_llm(self):
-        """无 LLM 时使用固定模板"""
+    @pytest.mark.asyncio
+    async def test_generate_clarification_no_llm_raises(self):
+        """无 LLM 时 generate_clarification 抛出 RuntimeError"""
         engine = UnderstandingEngine(llm_provider=None)
         intent = Intent(type="unknown", content="test")
-        result = engine.generate_clarification("test", intent, attempt=0)
-        assert isinstance(result, ClarificationResult)
-        assert result.question != ""
-        assert result.original_input == "test"
-        assert result.attempts == 0
-
-    def test_generate_clarification_attempt_1(self):
-        """第一次追问"""
-        engine = UnderstandingEngine(llm_provider=None)
-        intent = Intent(type="unknown", content="test")
-        result = engine.generate_clarification("test", intent, attempt=1)
-        assert result.attempts == 1
-
-    def test_generate_clarification_attempt_2(self):
-        """第二次追问"""
-        engine = UnderstandingEngine(llm_provider=None)
-        intent = Intent(type="unknown", content="test")
-        result = engine.generate_clarification("test", intent, attempt=2)
-        assert result.attempts == 2
-
-    def test_generate_clarification_max_attempts(self):
-        """最大追问次数"""
-        engine = UnderstandingEngine(llm_provider=None)
-        intent = Intent(type="unknown", content="test")
-        result = engine.generate_clarification("test", intent, attempt=3)
-        assert result.attempts == 3
+        with pytest.raises(RuntimeError, match="LLM不可用"):
+            await engine.generate_clarification("test", intent, attempt=1)
 
     @pytest.mark.asyncio
     async def test_generate_clarification_with_llm(self):
-        """有 LLM 时生成追问"""
+        """有 LLM 时 generate_clarification 返回追问结果"""
         llm = AsyncMock()
         llm.chat = AsyncMock(
-            return_value=LLMResult.success(content="你想让我做什么？")
+            return_value=LLMResult.success(
+                content='{"question": "你想让我做什么？", "strategy": "open"}'
+            )
         )
         engine = UnderstandingEngine(llm_provider=llm)
         intent = Intent(type="unknown", content="test")
-        # 使用 generate_clarification 方法（它内部会调用 _generate_clarification_by_llm）
-        result = engine.generate_clarification("test", intent, attempt=1)
-        # 无 LLM 路径（因为 generate_clarification 是同步的）
-        assert result.question != ""
+        result = await engine.generate_clarification("test", intent, attempt=1)
+        assert result.question == "你想让我做什么？"
+        assert result.attempts == 1
+        assert isinstance(result, ClarificationResult)
 
     @pytest.mark.asyncio
-    async def test_generate_clarification_with_personality(self):
-        """带人格参数的追问生成"""
+    async def test_generate_clarification_by_llm_no_llm_raises(self):
+        """无 LLM 时 generate_clarification_by_llm 抛出 RuntimeError"""
+        engine = UnderstandingEngine(llm_provider=None)
+        intent = Intent(type="unknown", content="test")
+        with pytest.raises(RuntimeError, match="LLM不可用"):
+            await engine.generate_clarification_by_llm("test", intent, attempt=1)
+
+    @pytest.mark.asyncio
+    async def test_generate_clarification_by_llm_success(self):
+        """有 LLM 时 generate_clarification_by_llm 返回追问"""
         llm = AsyncMock()
         llm.chat = AsyncMock(
-            return_value=LLMResult.success(content="请告诉我你想做什么？")
+            return_value=LLMResult.success(
+                content='{"question": "请具体说明你的需求", "strategy": "confirm"}'
+            )
         )
         engine = UnderstandingEngine(llm_provider=llm)
-        intent = Intent(type="unknown", content="test")
-        personality = {"X": 80, "A": 70}  # 外向 + 宜人性高
-        # generate_clarification 是同步的，不传 personality
-        result = engine.generate_clarification("test", intent, attempt=1)
-        assert result.question != ""
+        intent = Intent(type="unknown", content="test", confidence=0.2)
+        result = await engine.generate_clarification_by_llm("test", intent, attempt=2)
+        assert result.question == "请具体说明你的需求"
+        assert result.attempts == 2
+        assert result.original_input == "test"
 
     @pytest.mark.asyncio
-    async def test_generate_clarification_llm_failure_falls_back(self):
-        """LLM 追问失败后降级"""
+    async def test_generate_clarification_llm_failure_raises(self):
+        """LLM 追问失败后抛出 RuntimeError"""
         llm = AsyncMock()
-        llm.chat = AsyncMock(side_effect=Exception("网络错误"))
+        llm.chat = AsyncMock(return_value=LLMResult.fail(error="网络错误"))
         engine = UnderstandingEngine(llm_provider=llm)
         intent = Intent(type="unknown", content="test")
-        # generate_clarification 是同步的，不调用 LLM
-        result = engine.generate_clarification("test", intent, attempt=0)
-        assert result.question != ""
+        with pytest.raises(RuntimeError, match="LLM 追问生成失败"):
+            await engine.generate_clarification("test", intent, attempt=1)
 
 
 class TestAnalyzePersonalityFeedback:

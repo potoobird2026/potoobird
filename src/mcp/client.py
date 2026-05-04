@@ -2,21 +2,93 @@
 MCP 客户端 — stdio + HTTP 双传输 + SQLite 持久化 + 工具自动注册
 
 完整 MCP 2024-11-05 协议实现。
+安全增强：SSRF 防护 + URL 协议白名单 + API Key 加密存储 + WAL 模式 + 连接复用
 """
 
 import asyncio
 import json
 import logging
+import re
 import sqlite3
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 import httpx
 
 logger = logging.getLogger("long_agent.mcp")
+
+
+# ========== 安全常量 ==========
+
+# SSRF 防护：禁止访问的内网/回环地址模式
+BLOCKED_URL_PATTERNS = [
+    r"^https?://127\.",
+    r"^https?://10\.",
+    r"^https?://172\.(1[6-9]|2\d|3[01])\.",
+    r"^https?://192\.168\.",
+    r"^https?://0\.0\.0\.0",
+    r"^https?://localhost",
+    r"^https?://\[::1\]",
+    r"^https?://169\.254\.",
+]
+
+# 允许的 URL 协议
+ALLOWED_URL_SCHEMES = {"http", "https"}
+
+# stdio 命令白名单（命令名 + 完整路径）
+ALLOWED_COMMANDS = {
+    "npx", "node", "python", "python3", "uv", "bun", "deno",
+    "/usr/bin/python3", "/usr/bin/python", "/usr/local/bin/python3",
+    "/usr/bin/node", "/usr/local/bin/node",
+    "/usr/bin/npx", "/usr/local/bin/npx",
+}
+
+
+def _validate_url(url: str) -> None:
+    """校验 URL：协议白名单 + SSRF 防护
+
+    Args:
+        url: 待校验的 URL
+
+    Raises:
+        ValueError: URL 不合法或指向受限地址
+    """
+    if not url:
+        raise ValueError("URL 不能为空")
+
+    # 协议白名单检查
+    parsed = urlparse(url)
+    if parsed.scheme not in ALLOWED_URL_SCHEMES:
+        raise ValueError(
+            f"不允许的 URL 协议: {parsed.scheme}，仅允许 {ALLOWED_URL_SCHEMES}"
+        )
+
+    # SSRF 防护：黑名单检查
+    for pattern in BLOCKED_URL_PATTERNS:
+        if re.match(pattern, url, re.IGNORECASE):
+            raise ValueError(f"URL 指向受限地址，已拦截: {url}")
+
+
+def _validate_command(command: str) -> None:
+    """校验 stdio 命令是否在白名单中
+
+    先检查命令名（basename），再检查完整路径。
+
+    Args:
+        command: 待校验的命令
+
+    Raises:
+        ValueError: 命令不在白名单中
+    """
+    import os
+
+    basename = os.path.basename(command)
+    if basename not in ALLOWED_COMMANDS and command not in ALLOWED_COMMANDS:
+        raise ValueError(f"命令不在白名单中: {command}")
 
 
 # ========== 数据模型 ==========
@@ -37,6 +109,7 @@ class McpServerConfig:
     enabled: bool = True
     auto_connect: bool = False
     timeout: int = 30
+    api_key_encrypted: str = ""  # 加密存储的 API Key
 
 
 @dataclass
@@ -120,6 +193,8 @@ class HttpMcpConnection:
         )
 
     async def send(self, message: dict) -> dict:
+        # SSRF 防护：发送前校验 URL
+        _validate_url(self.config.url)
         resp = await self._client.post(self.config.url, json=message)
         resp.raise_for_status()
         return resp.json()
@@ -142,24 +217,29 @@ class McpClientManager:
 
     DB_PATH = str(Path(__file__).parent.parent.parent / "data" / "mcp.db")
 
-    # stdio 命令白名单
-    SAFE_COMMANDS = {"npx", "node", "python", "python3", "deno", "bun"}
-
     def __init__(self, db_path: str = None):
         self._connections: dict[str, object] = {}
         self._tool_registry = None
         self._db_path = db_path or self.DB_PATH
         self._init_db()
 
+    def _get_conn(self) -> sqlite3.Connection:
+        """获取启用 WAL 模式的数据库连接"""
+        conn = sqlite3.connect(self._db_path)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        return conn
+
     def _init_db(self):
         Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS mcp_servers (
                     id TEXT PRIMARY KEY, name TEXT, transport TEXT,
                     command TEXT, args TEXT, env TEXT,
                     url TEXT, headers TEXT,
                     enabled INTEGER, auto_connect INTEGER, timeout INTEGER,
+                    api_key_encrypted TEXT DEFAULT '',
                     installed_at TEXT, updated_at TEXT
                 );
                 CREATE TABLE IF NOT EXISTS mcp_tools_cache (
@@ -171,13 +251,13 @@ class McpClientManager:
             """)
 
     def _save_server(self, config: McpServerConfig):
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO mcp_servers
                 (id, name, transport, command, args, env, url, headers,
-                 enabled, auto_connect, timeout, installed_at, updated_at)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 enabled, auto_connect, timeout, api_key_encrypted, installed_at, updated_at)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
                 (
                     config.id,
@@ -191,19 +271,20 @@ class McpClientManager:
                     int(config.enabled),
                     int(config.auto_connect),
                     config.timeout,
+                    config.api_key_encrypted,
                     datetime.utcnow().isoformat(),
                     datetime.utcnow().isoformat(),
                 ),
             )
 
     def _delete_server(self, server_id: str):
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             conn.execute("DELETE FROM mcp_servers WHERE id=?", (server_id,))
             conn.execute("DELETE FROM mcp_tools_cache WHERE server_id=?", (server_id,))
 
     def _load_servers(self) -> list[McpServerConfig]:
         servers = []
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             for row in conn.execute("SELECT * FROM mcp_servers"):
                 servers.append(
                     McpServerConfig(
@@ -218,6 +299,7 @@ class McpClientManager:
                         enabled=bool(row[8]),
                         auto_connect=bool(row[9]),
                         timeout=row[10] or 30,
+                        api_key_encrypted=row[11] or "",
                     )
                 )
         return servers
@@ -255,10 +337,16 @@ class McpClientManager:
         if not config:
             raise ValueError(f"服务器未找到: {server_id}")
 
+        # 连接复用：如果已连接，直接返回缓存的服务器信息
+        if server_id in self._connections:
+            logger.info(f"MCP 服务器已连接，复用连接: {server_id}")
+            cached_info = getattr(self._connections[server_id], "_server_info", None)
+            if cached_info:
+                return cached_info
+
         # 创建连接
         if config.transport == "stdio":
-            if config.command not in self.SAFE_COMMANDS:
-                raise ValueError(f"命令不在白名单中: {config.command}")
+            _validate_command(config.command)
             conn = StdioMcpConnection(config)
         elif config.transport in ("http", "sse"):
             conn = HttpMcpConnection(config)
@@ -287,6 +375,8 @@ class McpClientManager:
             protocol_version=init_resp.get("result", {}).get("protocolVersion", ""),
             capabilities=init_resp.get("result", {}).get("capabilities", {}),
         )
+        # 缓存服务器信息（用于连接复用）
+        conn._server_info = server_info
 
         # tools/list 发现工具
         tools_resp = await conn.send(
@@ -329,7 +419,7 @@ class McpClientManager:
         )
 
     def _cache_tool(self, server_id: str, tool: McpToolInfo):
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             conn.execute(
                 """
                 INSERT OR REPLACE INTO mcp_tools_cache
@@ -350,14 +440,32 @@ class McpClientManager:
         if conn:
             await conn.close()
         # 标记工具缓存为未注册
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             conn.execute("UPDATE mcp_tools_cache SET registered=0 WHERE server_id=?", (server_id,))
 
     async def call_tool(self, server_id: str, tool_name: str, arguments: dict = None) -> str:
-        """调用 MCP 工具"""
+        """调用 MCP 工具
+
+        如果配置了 api_key_encrypted，会在调用前自动解密并注入到请求头中。
+        """
         conn = self._connections.get(server_id)
         if not conn:
             raise ValueError(f"服务器未连接: {server_id}")
+
+        # 加载配置以获取加密的 API Key
+        servers = self._load_servers()
+        config = next((s for s in servers if s.id == server_id), None)
+
+        # 如果配置了加密 API Key，解密后注入到 headers
+        if config and config.api_key_encrypted:
+            from src.config.settings import _decrypt
+
+            api_key = _decrypt(config.api_key_encrypted)
+            if isinstance(conn, HttpMcpConnection) and api_key:
+                # 注入 API Key 到请求头
+                conn._client.headers["Authorization"] = f"Bearer {api_key}"
+                logger.debug(f"已注入 API Key 到服务器 {server_id} 的请求头")
+
         resp = await conn.send(
             {
                 "jsonrpc": "2.0",
@@ -370,6 +478,16 @@ class McpClientManager:
             raise RuntimeError(f"MCP 错误: {resp['error'].get('message', '未知')}")
         content = resp.get("result", {}).get("content", [])
         return "\n".join(c.get("text", "") for c in content if c.get("type") == "text")
+
+    async def close(self):
+        """关闭所有连接"""
+        for server_id, conn in list(self._connections.items()):
+            try:
+                await conn.close()
+            except Exception as e:
+                logger.warning(f"关闭连接 {server_id} 时出错: {e}")
+        self._connections.clear()
+        logger.info("所有 MCP 连接已关闭")
 
     # ========== 查询 API ==========
 
@@ -387,7 +505,7 @@ class McpClientManager:
 
     def list_tools(self, server_id: str = None) -> list[McpToolInfo]:
         tools = []
-        with sqlite3.connect(self._db_path) as conn:
+        with self._get_conn() as conn:
             for row in conn.execute(
                 "SELECT server_id, tool_name, description, input_schema FROM mcp_tools_cache"
                 + (" WHERE server_id=?" if server_id else ""),

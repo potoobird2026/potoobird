@@ -130,6 +130,134 @@ async def health():
     return {"status": "ok", "memory_count": await agent["memory"].storage.count()}
 
 
+# ========== Skill 管理 API ==========
+
+@app.get("/api/skills")
+async def list_skills():
+    """列出所有 Skill"""
+    try:
+        from src.skill.registry import SkillRegistry
+        sm = SkillRegistry()
+        return {"skills": sm.list_skills(include_disabled=True)}
+    except Exception as e:
+        return {"skills": [], "error": str(e)}
+
+
+@app.post("/api/skills/install")
+async def install_skill(request: Request):
+    """从目录安装 Skill"""
+    data = await request.json()
+    path = data.get("path", "")
+    if not path:
+        return {"error": "缺少 path 参数"}
+    try:
+        from src.skill.registry import SkillRegistry
+        sm = SkillRegistry()
+        skill_id = sm.install_from_dir(path)
+        return {"id": skill_id, "ok": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/skills/{skill_id}/enable")
+async def enable_skill(skill_id: str):
+    try:
+        from src.skill.registry import SkillRegistry
+        sm = SkillRegistry()
+        sm.enable(skill_id)
+        return {"ok": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/skills/{skill_id}/disable")
+async def disable_skill(skill_id: str):
+    try:
+        from src.skill.registry import SkillRegistry
+        sm = SkillRegistry()
+        sm.disable(skill_id)
+        return {"ok": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/skills/{skill_id}/uninstall")
+async def uninstall_skill(skill_id: str):
+    try:
+        from src.skill.registry import SkillRegistry
+        sm = SkillRegistry()
+        sm.unregister(skill_id)
+        return {"ok": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ========== MCP 管理 API ==========
+
+@app.get("/api/mcp/servers")
+async def list_mcp_servers():
+    """列出所有 MCP 服务器"""
+    try:
+        from src.mcp.client import McpClientManager
+        mcp = McpClientManager()
+        return {"servers": mcp.list_servers()}
+    except Exception as e:
+        return {"servers": [], "error": str(e)}
+
+
+@app.post("/api/mcp/servers")
+async def add_mcp_server(request: Request):
+    """添加 MCP 服务器配置"""
+    data = await request.json()
+    name = data.get("name", "")
+    url = data.get("url", "")
+    transport = data.get("transport", "http")
+    if not name or not url:
+        return {"error": "缺少 name 或 url 参数"}
+    try:
+        from src.mcp.client import McpClientManager, McpServerConfig
+        mcp = McpClientManager()
+        config = McpServerConfig(id=name.lower().replace(" ", "_"), name=name,
+                                 transport=transport, url=url)
+        mcp.add_server(config)
+        return {"ok": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/mcp/servers/{server_id}/connect")
+async def connect_mcp_server(server_id: str):
+    try:
+        from src.mcp.client import McpClientManager
+        mcp = McpClientManager()
+        await mcp.connect(server_id)
+        return {"ok": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.post("/api/mcp/servers/{server_id}/disconnect")
+async def disconnect_mcp_server(server_id: str):
+    try:
+        from src.mcp.client import McpClientManager
+        mcp = McpClientManager()
+        await mcp.disconnect(server_id)
+        return {"ok": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@app.delete("/api/mcp/servers/{server_id}")
+async def remove_mcp_server(server_id: str):
+    try:
+        from src.mcp.client import McpClientManager
+        mcp = McpClientManager()
+        mcp.remove_server(server_id)
+        return {"ok": True}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @app.get("/api/skills")
 async def list_skills():
     """列出所有 Skill"""

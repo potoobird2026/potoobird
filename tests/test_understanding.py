@@ -60,61 +60,61 @@ class TestShouldCallLLM:
 
 
 class TestClarification:
-    """generate_clarification 直接构造 Intent，不经过 parse()"""
+    """generate_clarification — 无 LLM 时抛 RuntimeError，有 LLM 时异步生成追问"""
 
-    def test_first_attempt(self, engine):
+    @pytest.mark.asyncio
+    async def test_no_llm_raises(self, engine):
+        """无 LLM 时 generate_clarification 抛出 RuntimeError"""
         from src.understanding.engine import Intent
         intent = Intent(type="llm_chat", content="模糊输入", confidence=0.3)
-        result = engine.generate_clarification("模糊输入", intent, attempt=1)
-        assert "你想让我做什么" in result.question
+        with pytest.raises(RuntimeError, match="LLM不可用"):
+            await engine.generate_clarification("模糊输入", intent, attempt=1)
+
+    @pytest.mark.asyncio
+    async def test_with_llm_returns_question(self):
+        """有 LLM 时返回追问结果"""
+        from unittest.mock import AsyncMock
+        from src.errors.types import LLMResult
+        from src.understanding.engine import Intent, UnderstandingEngine
+        llm = AsyncMock()
+        llm.chat = AsyncMock(
+            return_value=LLMResult.success(
+                content='{"question": "你想让我做什么？", "strategy": "open"}'
+            )
+        )
+        engine_with_llm = UnderstandingEngine(llm_provider=llm)
+        intent = Intent(type="llm_chat", content="模糊输入", confidence=0.3)
+        result = await engine_with_llm.generate_clarification("模糊输入", intent, attempt=1)
+        assert result.question == "你想让我做什么？"
         assert result.attempts == 1
 
-    def test_max_attempts_capped(self, engine):
-        from src.understanding.engine import Intent
-        intent = Intent(type="llm_chat", content="模糊输入", confidence=0.3)
-        result = engine.generate_clarification("模糊输入", intent, attempt=5)
-        assert result.attempts == 5
-        # 追问文案不应超出数组范围
-        assert result.question != ""
+    @pytest.mark.asyncio
+    async def test_with_llm_by_llm_directly(self):
+        """直接调用 generate_clarification_by_llm"""
+        from unittest.mock import AsyncMock
+        from src.errors.types import LLMResult
+        from src.understanding.engine import Intent, UnderstandingEngine
+        llm = AsyncMock()
+        llm.chat = AsyncMock(
+            return_value=LLMResult.success(
+                content='{"question": "请具体说明", "strategy": "confirm"}'
+            )
+        )
+        engine_with_llm = UnderstandingEngine(llm_provider=llm)
+        intent = Intent(type="unknown", content="test", confidence=0.2)
+        result = await engine_with_llm.generate_clarification_by_llm("test", intent, attempt=2)
+        assert result.question == "请具体说明"
+        assert result.attempts == 2
 
-    def test_personality_none_no_change(self, engine):
-        """personality=None 时不调整语气"""
-        from src.understanding.engine import Intent
-        intent = Intent(type="llm_chat", content="模糊输入", confidence=0.3)
-        result = engine.generate_clarification("模糊输入", intent, attempt=1, personality=None)
-        assert "你想让我做什么" in result.question
-
-    def test_personality_high_X_adds_tone(self, engine):
-        """X > 70 外向性：添加主动语气词"""
-        from src.understanding.engine import Intent
-        intent = Intent(type="llm_chat", content="模糊输入", confidence=0.3)
-        result = engine.generate_clarification("模糊输入", intent, attempt=1, personality={"X": 80, "A": 50, "E": 50})
-        assert "怎么样" in result.question or "吧" in result.question
-
-    def test_personality_high_A_adds_polite(self, engine):
-        """A > 70 宜人性：添加敬语"""
-        from src.understanding.engine import Intent
-        intent = Intent(type="llm_chat", content="模糊输入", confidence=0.3)
-        result = engine.generate_clarification("模糊输入", intent, attempt=1, personality={"X": 50, "A": 80, "E": 50})
-        assert "请" in result.question
-
-    def test_personality_high_E_adds_warmth(self, engine):
-        """E > 70 情绪性：添加温度词/表情"""
-        from src.understanding.engine import Intent
-        intent = Intent(type="llm_chat", content="模糊输入", confidence=0.3)
-        result = engine.generate_clarification("模糊输入", intent, attempt=1, personality={"X": 50, "A": 50, "E": 80})
-        assert "😊" in result.question
-
-    def test_personality_low_E_neutral(self, engine):
-        """E < 30 情绪性：保持客观中立，无表情"""
-        from src.understanding.engine import Intent
-        intent = Intent(type="llm_chat", content="模糊输入", confidence=0.3)
-        result = engine.generate_clarification("模糊输入", intent, attempt=1, personality={"X": 50, "A": 50, "E": 20})
-        assert "😊" not in result.question
-
-    def test_personality_low_A_direct(self, engine):
-        """A < 30 宜人性：语气直接，不用敬语"""
-        from src.understanding.engine import Intent
-        intent = Intent(type="llm_chat", content="模糊输入", confidence=0.3)
-        result = engine.generate_clarification("模糊输入", intent, attempt=1, personality={"X": 50, "A": 20, "E": 50})
-        assert "请" not in result.question
+    @pytest.mark.asyncio
+    async def test_llm_failure_raises(self):
+        """LLM 返回失败时抛出 RuntimeError"""
+        from unittest.mock import AsyncMock
+        from src.errors.types import LLMResult
+        from src.understanding.engine import Intent, UnderstandingEngine
+        llm = AsyncMock()
+        llm.chat = AsyncMock(return_value=LLMResult.fail(error="API 错误"))
+        engine_with_llm = UnderstandingEngine(llm_provider=llm)
+        intent = Intent(type="unknown", content="test", confidence=0.2)
+        with pytest.raises(RuntimeError, match="LLM 追问生成失败"):
+            await engine_with_llm.generate_clarification("test", intent, attempt=1)

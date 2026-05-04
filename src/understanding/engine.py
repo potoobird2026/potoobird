@@ -198,34 +198,30 @@ class UnderstandingEngine:
             clarification_question="我没理解你的意思，能不能用另一种方式描述一下？",
         )
 
-    def generate_clarification(
+    async def generate_clarification(
         self, user_input: str, intent: Intent, attempt: int = 1, personality: dict = None
     ) -> ClarificationResult:
         """
         生成追问。
 
-        V1：使用固定模板（保证基础可用）
-        V2：由 LLM 动态生成（更自然、支持多语言）
+        有 LLM 时调用 generate_clarification_by_llm()，否则抛出 RuntimeError。
 
         Args:
             user_input: 用户原始输入
             intent: 解析后的意图
             attempt: 当前追问次数
-            personality: 人格参数 dict，包含 X/A/E 等维度（None 时不调整语气）
+            personality: 人格参数 dict（保留接口兼容，当前版本由 LLM 处理）
+
+        Returns:
+            ClarificationResult: 追问结果
+
+        Raises:
+            RuntimeError: LLM 不可用时抛出
         """
-        idx = min(attempt - 1, len(self.CLARIFICATION_QUESTIONS) - 1)
-        question = self.CLARIFICATION_QUESTIONS[idx]
+        if self._llm:
+            return await self.generate_clarification_by_llm(user_input, intent, attempt)
 
-        # 根据人格参数调整语气
-        if personality:
-            question = self._apply_personality_tone(question, personality)
-
-        return ClarificationResult(
-            question=question,
-            original_input=user_input,
-            attempts=attempt,
-            max_attempts=3,
-        )
+        raise RuntimeError("LLM不可用，无法生成追问")
 
     @staticmethod
     def _apply_personality_tone(question: str, personality: dict) -> str:
@@ -275,80 +271,44 @@ class UnderstandingEngine:
         return question
 
     async def generate_clarification_by_llm(
-        self, user_input: str, intent: Intent, attempt: int = 1, personality: dict = None
+        self, user_input: str, intent: Intent, attempt: int = 1
     ) -> ClarificationResult:
         """
-        由 LLM 动态生成追问（V2 方法，V1 也可用）。
-
-        优势：
-        - 支持任意语言（中文/英文/混合）
-        - 根据追问次数调整策略
-        - 结合人格参数调整语气
+        由 LLM 动态生成追问问题。
 
         Args:
             user_input: 用户原始输入
-            intent: 解析后的意图
-            attempt: 当前追问次数
-            personality: 当前人格参数（影响追问语气）
+            intent: 当前解析的意图
+            attempt: 当前追问次数（从1开始）
+
+        Returns:
+            ClarificationResult: 追问结果
+
+        Raises:
+            RuntimeError: LLM 不可用时抛出
         """
         if not self._llm:
-            # 没有 LLM，降级到固定模板（携带人格参数）
-            return self.generate_clarification(user_input, intent, attempt, personality=personality)
+            raise RuntimeError("LLM不可用，无法生成追问")
 
-        # 构建追问策略提示
-        strategy_hint = ""
-        if attempt == 1:
-            strategy_hint = "第一次追问：请用开放式问题，了解用户想要做什么。"
-        elif attempt == 2:
-            strategy_hint = "第二次追问：用户仍然不清楚，请用选择题方式帮助用户明确意图。"
-        else:
-            strategy_hint = "最后一次追问：请直接猜测用户最可能想要什么，给出确认式问题。"
-
-        personality_hint = ""
-        if personality:
-            x = personality.get("X", 50)
-            a = personality.get("A", 50)
-            if x > 70:
-                personality_hint = "你的性格偏外向，可以主动一些。"
-            elif x < 30:
-                personality_hint = "你的性格偏内向，保持简洁。"
-            if a > 70:
-                personality_hint += "语气温和，多用'请'、'可以吗'。"
-            elif a < 30:
-                personality_hint += "语气直接，不用过度客气。"
-
-        system_prompt = (
-            f"你是一个意图澄清助手。用户说了一句模糊的话，你需要追问以明确意图。\n"
-            f"用户原始输入：「{user_input}」\n"
-            f"已解析意图：{getattr(intent, 'type', 'unknown')}\n"
-            f"追问策略：{strategy_hint}\n"
-            f"人格提示：{personality_hint}\n\n"
-            "请直接输出追问内容（不要输出 JSON，不要解释），"
-            "用与用户相同的语言追问。"
+        # 构建 prompt
+        prompt = (
+            f"用户输入：{user_input}\n"
+            f"意图类型：{intent.type}\n"
+            f"置信度：{intent.confidence:.2f}\n"
+            f"已追问次数：{attempt}\n\n"
+            f"请生成一个追问问题，返回 JSON："
+            f'{{"question": "...", "strategy": "open|confirm|hybrid"}}'
         )
 
-        try:
-            from src.llm.provider import LLMRequest
-
-            request = LLMRequest(
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                ],
-                temperature=0.5,
+        result = await self._llm.chat(prompt)
+        if result.is_ok:
+            data = json.loads(result.content)
+            return ClarificationResult(
+                question=data.get("question", ""),
+                original_input=user_input,
+                attempts=attempt,
             )
-            result = await self._llm.chat(request)
-            if result.is_ok and result.content.strip():
-                return ClarificationResult(
-                    question=result.content.strip(),
-                    original_input=user_input,
-                    attempts=attempt,
-                    max_attempts=3,
-                )
-        except Exception as e:
-            logger.warning(f"Llm 追问生成失败，降级到模板: {e}")
-
-        # 降级到固定模板
-        return self.generate_clarification(user_input, intent, attempt)
+        raise RuntimeError(f"LLM 追问生成失败: {result.error}")
 
     async def analyze_personality_feedback(
         self, user_input: str, current_personality: dict = None

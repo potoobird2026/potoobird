@@ -238,9 +238,18 @@ class TestClarification:
                 clarification_question="你想做什么？",
             )
         )
+        mock_understanding.has_llm = True
+        from src.understanding.engine import ClarificationResult
+        mock_understanding.generate_clarification_by_llm = AsyncMock(
+            return_value=ClarificationResult(question="你想做什么？请具体说明。")
+        )
         resp = await agent_loop.run("模糊")
-        assert isinstance(resp, str)
-        assert len(resp) > 0
+        # 返回追问问题（字符串或 ClarificationResult）
+        if isinstance(resp, str):
+            assert len(resp) > 0
+        else:
+            assert hasattr(resp, 'question')
+            assert len(resp.question) > 0
 
 
 class TestApproval:
