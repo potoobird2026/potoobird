@@ -9,7 +9,7 @@ import logging
 import shutil
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -125,7 +125,7 @@ class SkillRegistry:
         """注册 Skill（校验唯一性 + 持久化 + 自动注册工具到ToolRegistry）"""
         if skill.id in self._skills:
             raise ValueError(f"Skill 已存在: {skill.id}")
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat() + "Z"
         skill.installed_at = now
         skill.updated_at = now
         self._skills[skill.id] = skill
@@ -149,7 +149,7 @@ class SkillRegistry:
         skill = self._skills.get(skill_id)
         if skill:
             skill.enabled = True
-            skill.updated_at = datetime.utcnow().isoformat() + "Z"
+            skill.updated_at = datetime.now(timezone.utc).isoformat() + "Z"
             self._save_to_db(skill)
 
     def disable(self, skill_id: str):
@@ -157,7 +157,7 @@ class SkillRegistry:
         skill = self._skills.get(skill_id)
         if skill:
             skill.enabled = False
-            skill.updated_at = datetime.utcnow().isoformat() + "Z"
+            skill.updated_at = datetime.now(timezone.utc).isoformat() + "Z"
             self._save_to_db(skill)
 
     def configure(self, skill_id: str, config: dict):
@@ -165,7 +165,7 @@ class SkillRegistry:
         skill = self._skills.get(skill_id)
         if skill:
             skill.config.update(config)
-            skill.updated_at = datetime.utcnow().isoformat() + "Z"
+            skill.updated_at = datetime.now(timezone.utc).isoformat() + "Z"
             self._save_to_db(skill)
 
     def install_from_dir(self, source_dir: str) -> str:

@@ -8,7 +8,7 @@
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -54,13 +54,13 @@ class BackgroundTaskManager:
 
     def _write_timestamp(self, path: Path):
         # 注意：不加 Z 后缀，Python 3.10 的 fromisoformat 不支持 Z
-        path.write_text(datetime.utcnow().isoformat())
+        path.write_text(datetime.now(timezone.utc).isoformat())
 
     def _should_run(self, last_file: Path, interval: timedelta) -> bool:
         last = self._read_timestamp(last_file)
         if last is None:
             return True
-        return datetime.utcnow() - last >= interval
+        return datetime.now(timezone.utc) - last >= interval
 
     # ---- 事件钩子 ----
 
@@ -72,7 +72,7 @@ class BackgroundTaskManager:
         last_backup = self._read_timestamp(self._last_backup_file)
         if last_backup is None:
             logger.info("从未备份过，建议尽快备份")
-        elif datetime.utcnow() - last_backup > timedelta(hours=48):
+        elif datetime.now(timezone.utc) - last_backup > timedelta(hours=48):
             logger.warning(
                 f"距上次备份已超过 48 小时（上次：{last_backup.isoformat()}），建议尽快备份"
             )

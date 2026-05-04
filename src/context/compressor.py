@@ -36,7 +36,7 @@ import asyncio
 import logging
 import math
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -242,7 +242,7 @@ class ContextCompressor:
             try:
                 ts = created_at_str.replace("Z", "+00:00")
                 created_at = datetime.fromisoformat(ts.replace("+00:00", ""))
-                age_hours = (datetime.utcnow() - created_at).total_seconds() / 3600
+                age_hours = (datetime.now(timezone.utc) - created_at).total_seconds() / 3600
             except (ValueError, TypeError):
                 age_hours = 0
         else:
@@ -293,7 +293,7 @@ class ContextCompressor:
             try:
                 ts = last_access.replace("Z", "+00:00")
                 last_dt = datetime.fromisoformat(ts.replace("+00:00", ""))
-                age_hours = (datetime.utcnow() - last_dt).total_seconds() / 3600
+                age_hours = (datetime.now(timezone.utc) - last_dt).total_seconds() / 3600
             except (ValueError, TypeError):
                 age_hours = 0
         else:

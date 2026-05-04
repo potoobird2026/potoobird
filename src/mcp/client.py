@@ -12,7 +12,7 @@ import re
 import sqlite3
 import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -272,8 +272,8 @@ class McpClientManager:
                     int(config.auto_connect),
                     config.timeout,
                     config.api_key_encrypted,
-                    datetime.utcnow().isoformat(),
-                    datetime.utcnow().isoformat(),
+                    datetime.now(timezone.utc).isoformat(),
+                    datetime.now(timezone.utc).isoformat(),
                 ),
             )
 

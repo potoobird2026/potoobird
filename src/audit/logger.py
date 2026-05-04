@@ -7,7 +7,7 @@
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 
@@ -43,7 +43,7 @@ class AuditLogger:
     def log(self, action: AuditAction, details: dict, success: bool = True, error: str = None):
         """记录一条审计日志"""
         entry = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
             "action": action.value,
             "success": success,
             "details": details,

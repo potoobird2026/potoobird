@@ -16,7 +16,7 @@ ProcessStandard — 流程标准化器
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger("long_agent.execution.process_standard")
 
@@ -31,7 +31,7 @@ class StepRecord:
     tool_params: dict = field(default_factory=dict)
     result: str = ""
     error: str = ""
-    started_at: datetime = field(default_factory=datetime.utcnow)
+    started_at: datetime = field(default_factory=datetime.now(timezone.utc))
     completed_at: datetime = None
     approved: bool = False
 
@@ -46,7 +46,7 @@ class ApprovalRecord:
     approver: str = ""
     reason: str = ""
     risk_score: float = 0.0
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=datetime.now(timezone.utc))
 
 
 class ProcessStandard:

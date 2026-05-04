@@ -15,7 +15,7 @@ import os
 import platform
 import sqlite3
 import subprocess
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -250,7 +250,7 @@ class SQLiteStorage(MemoryStorage):
 
     async def upsert(self, memory: Memory) -> MemoryWriteResult:
         """写入或更新记忆"""
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat() + "Z"
 
         if not memory.id:
             memory.id = self._generate_id()

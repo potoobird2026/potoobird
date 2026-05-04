@@ -20,7 +20,7 @@ import asyncio
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -60,7 +60,7 @@ class SubAgent:
     status: SubAgentStatus = SubAgentStatus.PENDING
     result: str = ""
     error: str = ""
-    created_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=datetime.now(timezone.utc))
     completed_at: datetime = None
     _task_future: asyncio.Future = None
 
@@ -157,7 +157,7 @@ class SubAgentManager:
             subagent.error = str(e)
             logger.error(f"子 Agent 失败: {subagent.id}, error={e}")
         finally:
-            subagent.completed_at = datetime.utcnow()
+            subagent.completed_at = datetime.now(timezone.utc)
 
     async def wait(self, subagent_id: str, timeout: int = None) -> Optional[SubAgent]:
         """
@@ -205,7 +205,7 @@ class SubAgentManager:
             subagent._task_future.cancel()
 
         subagent.status = SubAgentStatus.CANCELLED
-        subagent.completed_at = datetime.utcnow()
+        subagent.completed_at = datetime.now(timezone.utc)
 
         # 移入历史
         self._history.append(subagent)

@@ -9,7 +9,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from src.errors.types import OperationResult
@@ -32,7 +32,7 @@ class Memory:
     updated_at: str = ""
 
     def __post_init__(self):
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat() + "Z"
         if not self.created_at:
             self.created_at = now
         if not self.updated_at:
@@ -40,7 +40,7 @@ class Memory:
 
     def touch(self):
         """更新时间戳"""
-        self.updated_at = datetime.utcnow().isoformat() + "Z"
+        self.updated_at = datetime.now(timezone.utc).isoformat() + "Z"
 
 
 @dataclass

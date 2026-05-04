@@ -12,7 +12,7 @@ ModelRouter — 模型路由器
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from src.errors.types import ErrorCode, LLMResult
@@ -43,7 +43,7 @@ class ModelConfig:
         """检查是否在冷却期"""
         if self.cooldown_until is None:
             return False
-        return datetime.utcnow() < self.cooldown_until
+        return datetime.now(timezone.utc) < self.cooldown_until
 
     @property
     def failure_rate(self) -> float:
@@ -296,7 +296,7 @@ class ModelRouter:
             600,  # 最长10分钟
         )
         config.failure_count += 1
-        config.cooldown_until = datetime.utcnow() + timedelta(seconds=cooldown_seconds)
+        config.cooldown_until = datetime.now(timezone.utc) + timedelta(seconds=cooldown_seconds)
         logger.info(
             f"模型 {config.name} 冷却 {cooldown_seconds}s （连续失败 {config.failure_count} 次）"
         )
